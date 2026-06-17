@@ -15,7 +15,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # ============================================================
 DOWNLOAD_FOLDER = tempfile.gettempdir()
 
-# ✅ قائمة المواقع المدعومة (كل المواقع ما عدا يوتيوب)
+# ✅ قائمة المواقع المدعومة
 SUPPORTED_SITES = [
     'facebook.com', 'fb.watch',
     'instagram.com', 'instagr.am',
@@ -49,114 +49,94 @@ YDL_OPTS_BASE = {
     'geo_bypass': True,
     'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0',
     'referer': 'https://www.google.com/',
+    'force_generic_extractor': True,
+    'cookiefile': None,
+    'format_sort': ['res', 'codec'],
 }
 
 # ============================================================
-# ✅ دالة التحقق من صحة الرابط (بدون يوتيوب)
+# ✅ دالة التحقق من صحة الرابط
 # ============================================================
 def is_valid_url(url):
     url_lower = url.lower()
-    
+
     # ❌ رفض يوتيوب نهائياً
     if 'youtube.com' in url_lower or 'youtu.be' in url_lower:
         return False, "YouTube not supported"
-    
+
     # ✅ قبول المواقع الأخرى
     for site in SUPPORTED_SITES:
         if site in url_lower:
             return True, None
-    
-    # إذا كان الرابط عام (ليس محدد) نقبله
+
     if url_lower.startswith('http'):
         return True, None
-    
+
     return False, "Invalid URL"
 
 # ============================================================
-# ✅ دالة استخراج معلومات الفيديو (سريعة وقوية)
+# ✅ دالة استخراج معلومات الفيديو
 # ============================================================
 def get_video_info(url):
     ydl_opts = YDL_OPTS_BASE.copy()
     ydl_opts['extract_flat'] = False
-    
-    # إعدادات خاصة بكل موقع
+
     if 'instagram.com' in url:
         ydl_opts['user_agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15'
     elif 'tiktok.com' in url:
         ydl_opts['user_agent'] = 'Mozilla/5.0 (Linux; Android 11) Mobile'
     elif 'facebook.com' in url:
         ydl_opts['user_agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    
+
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
         return info
 
+# ============================================================
+# ✅ استخراج التنسيقات
+# ============================================================
 def extract_formats(info):
     formats = []
-    
+
     for f in info.get('formats', []):
         if not f.get('url'):
             continue
-            
-        # تحديد نوع التنسيق
+
         has_video = f.get('vcodec') != 'none'
         has_audio = f.get('acodec') != 'none'
-        
-        if has_video and has_audio:
-            format_type = 'video_with_audio'
-        elif has_video:
-            format_type = 'video_only'
-        elif has_audio:
-            format_type = 'audio_only'
-        else:
-            continue
-        
-        # استخراج الدقة
+
         height = f.get('height', 0)
         quality = f"{height}p" if height > 0 else (f.get('format_note', 'Unknown'))
-        
-        # استخراج حجم الملف
-        filesize = f.get('filesize') or f.get('filesize_approx') or 0
-        
-        # نظافة الاسم
-        if quality == '0p':
-            quality = 'Audio' if format_type == 'audio_only' else 'Unknown'
-        
+
         formats.append({
             'format_id': f.get('format_id', 'unknown'),
             'quality': quality,
             'height': height,
             'ext': f.get('ext', 'mp4'),
             'url': f.get('url'),
-            'filesize': filesize,
-            'filesize_mb': round(filesize / (1024 * 1024), 2) if filesize else 0,
-            'type': format_type,
+            'filesize': f.get('filesize') or f.get('filesize_approx') or 0,
+            'filesize_mb': round((f.get('filesize') or 0) / (1024 * 1024), 2),
             'has_video': has_video,
             'has_audio': has_audio
         })
-    
-    # ترتيب حسب الجودة
-    formats.sort(key=lambda x: (x['height'], x['filesize']), reverse=True)
-    
+
+    formats.sort(key=lambda x: x['height'], reverse=True)
     return formats
 
 def get_best_format(formats):
-    # أولوية الفيديو مع الصوت
-    video_with_audio = [f for f in formats if f['type'] == 'video_with_audio']
+    video_with_audio = [f for f in formats if f['has_video'] and f['has_audio']]
     if video_with_audio:
         return video_with_audio[0]
-    
-    # لو ما لقينا، نأخذ فيديو فقط وأفضل جودة
-    video_only = [f for f in formats if f['type'] == 'video_only']
+
+    video_only = [f for f in formats if f['has_video']]
     if video_only:
         return video_only[0]
-    
+
     return formats[0] if formats else None
 
 # ============================================================
 # ✅ API Routes
 # ============================================================
-
 @app.route('/', methods=['GET'])
 def home():
     return jsonify({
@@ -171,16 +151,15 @@ def home():
 def extract():
     try:
         data = request.get_json(silent=True)
-        
+
         if not data or 'url' not in data:
             return jsonify({
                 'status': 'error',
                 'message': 'No URL provided'
             }), 400
-        
+
         url = data['url'].strip()
-        
-        # التحقق من صحة الرابط
+
         is_valid, error_msg = is_valid_url(url)
         if not is_valid:
             return jsonify({
@@ -188,22 +167,18 @@ def extract():
                 'message': error_msg or 'URL not supported',
                 'supported_sites': SUPPORTED_SITES
             }), 400
-        
-        # استخراج معلومات الفيديو
+
         info = get_video_info(url)
-        
-        # استخراج التنسيقات المتاحة
         formats = extract_formats(info)
-        
+
         if not formats:
             return jsonify({
                 'status': 'error',
                 'message': 'No video formats found'
             }), 404
-        
-        # أفضل تنسيق
+
         best_format = get_best_format(formats)
-        
+
         return jsonify({
             'status': 'success',
             'title': info.get('title', 'Untitled'),
@@ -217,7 +192,7 @@ def extract():
             'best_quality': best_format['quality'] if best_format else '',
             'formats': formats
         })
-        
+
     except Exception as e:
         return jsonify({
             'status': 'error',
@@ -228,60 +203,56 @@ def extract():
 def download():
     try:
         data = request.get_json(silent=True)
-        
+
         if not data or 'url' not in data:
             return jsonify({
                 'status': 'error',
                 'message': 'No URL provided'
             }), 400
-        
+
         url = data['url'].strip()
         format_id = data.get('format_id', 'best')
-        
-        # التحقق من صحة الرابط
+
         is_valid, error_msg = is_valid_url(url)
         if not is_valid:
             return jsonify({
                 'status': 'error',
                 'message': error_msg or 'URL not supported'
             }), 400
-        
-        # إعدادات التحميل
+
         unique_id = uuid.uuid4().hex
         output_path = os.path.join(DOWNLOAD_FOLDER, f"video_{unique_id}.mp4")
-        
+
         ydl_opts = YDL_OPTS_BASE.copy()
         ydl_opts['outtmpl'] = output_path.replace('.mp4', '.%(ext)s')
-        
+
         if format_id != 'best':
             ydl_opts['format'] = format_id
         else:
             ydl_opts['format'] = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
-        
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
-        
-        # البحث عن الملف المحمل
+
         actual_file = None
         for file in os.listdir(DOWNLOAD_FOLDER):
             if file.startswith(f"video_{unique_id}"):
                 actual_file = os.path.join(DOWNLOAD_FOLDER, file)
                 break
-        
+
         if not actual_file or not os.path.exists(actual_file):
             return jsonify({
                 'status': 'error',
                 'message': 'Download failed'
             }), 500
-        
-        # إرسال الملف للمستخدم
+
         return send_file(
             actual_file,
             as_attachment=True,
             download_name=f"video_{unique_id}.mp4",
             mimetype='video/mp4'
         )
-        
+
     except Exception as e:
         return jsonify({
             'status': 'error',
@@ -293,16 +264,15 @@ def check_url():
     try:
         data = request.get_json(silent=True)
         url = data.get('url', '') if data else ''
-        
+
         is_valid, error_msg = is_valid_url(url)
-        
-        # تحديد الموقع
+
         site_name = 'Unknown'
         for site in SUPPORTED_SITES:
             if site in url.lower():
                 site_name = site.split('.')[0].capitalize()
                 break
-        
+
         return jsonify({
             'status': 'success',
             'supported': is_valid,
@@ -310,7 +280,7 @@ def check_url():
             'site': site_name,
             'url': url
         })
-        
+
     except Exception as e:
         return jsonify({
             'status': 'error',
