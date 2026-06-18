@@ -15,7 +15,7 @@ YDL_OPTS = {
     'extract_flat': False,
     'no_color': True,
     'geo_bypass': True,
-    'cookiefile': None,  # ✅ مهم لإنستغرام
+    'cookiefile': None,
     'user_agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15',
     'referer': 'https://www.instagram.com/',
 }
@@ -34,7 +34,6 @@ def extract():
     url = data["url"]
     print(f"📥 Extracting: {url}")
 
-    # ✅ إعدادات خاصة حسب الموقع
     ydl_opts = YDL_OPTS.copy()
     
     if 'instagram.com' in url:
@@ -52,7 +51,6 @@ def extract():
 
             formats = []
 
-            # ✅ جلب جميع التنسيقات
             for f in info.get('formats', []):
                 if not f.get('url'):
                     continue
@@ -60,14 +58,13 @@ def extract():
                 has_video = f.get('vcodec') != 'none'
                 has_audio = f.get('acodec') != 'none'
 
-                # ✅ نضيف جميع التنسيقات (فيديو مع صوت، فيديو فقط، صوت فقط)
                 if has_video or has_audio:
                     height = f.get('height', 0)
-                    quality = f"{height}p" if height > 0 else 'Audio' if has_audio else 'Video'
+                    quality = f"{height}p" if height and height > 0 else 'Audio' if has_audio else 'Video'
                     
                     formats.append({
                         'quality': quality,
-                        'height': height,
+                        'height': height if height is not None else 0,
                         'ext': f.get('ext', 'mp4'),
                         'url': f.get('url'),
                         'filesize': f.get('filesize') or f.get('filesize_approx') or 0,
@@ -76,10 +73,9 @@ def extract():
                         'format_id': f.get('format_id', 'unknown')
                     })
 
-            # ✅ ترتيب حسب الجودة
-            formats.sort(key=lambda x: x['height'], reverse=True)
+            # ✅ الترتيب الصحيح (تجنب None)
+            formats.sort(key=lambda x: x['height'] if x['height'] is not None else 0, reverse=True)
 
-            # ✅ أفضل تنسيق (فيديو مع صوت)
             best_format = next((f for f in formats if f['has_video'] and f['has_audio']), formats[0] if formats else None)
 
             return jsonify({
