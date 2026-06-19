@@ -2,31 +2,38 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import yt_dlp
 import os
-import re
+import json
 
 app = Flask(__name__)
 CORS(app)
 
-# ✅ إعدادات متقدمة
+# ✅ إعدادات قوية ومحدثة
 YDL_OPTS = {
     'quiet': True,
     'no_warnings': True,
     'noplaylist': True,
     'ignoreerrors': True,
-    'extract_flat': 'in_playlist',
+    'extract_flat': False,
     'no_color': True,
     'geo_bypass': True,
-    'cookiefile': None,
-    'user_agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15',
+    'cookiefile': None,  # ✅ مهم لإنستغرام
+    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'referer': 'https://www.instagram.com/',
 }
 
 @app.route("/")
 def home():
-    return "VidSnap API Running"
+    return jsonify({"status": "success", "message": "VidSnap API Running"})
 
-@app.route("/extract", methods=["POST"])
+@app.route("/extract", methods=["POST", "OPTIONS"])
 def extract():
+    if request.method == "OPTIONS":
+        response = jsonify()
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Headers", "*")
+        response.headers.add("Access-Control-Allow-Methods", "*")
+        return response
+
     data = request.get_json(silent=True)
 
     if not data or "url" not in data:
@@ -43,51 +50,59 @@ def extract():
 
             formats = []
 
-            # ✅ الطريقة الأولى: جلب التنسيقات
             for f in info.get('formats', []):
                 if not f.get('url'):
                     continue
 
+                has_video = f.get('vcodec') != 'none'
+                has_audio = f.get('acodec') != 'none'
+
+                height = f.get('height', 0)
+                if height is None:
+                    height = 0
+
+                quality = f"{height}p" if height > 0 else 'Audio' if has_audio else 'Video'
+
                 formats.append({
-                    'quality': f"{f.get('height', 0)}p" if f.get('height', 0) > 0 else 'Audio',
-                    'height': f.get('height', 0) or 0,
+                    'quality': quality,
+                    'height': height,
                     'ext': f.get('ext', 'mp4'),
                     'url': f.get('url'),
                     'filesize': f.get('filesize') or f.get('filesize_approx') or 0,
-                    'has_video': f.get('vcodec') != 'none',
-                    'has_audio': f.get('acodec') != 'none',
+                    'has_video': has_video,
+                    'has_audio': has_audio,
                     'format_id': f.get('format_id', 'unknown')
                 })
 
-            # ✅ الطريقة الثانية: جلب الرابط المباشر من `url` أو `manifest_url`
+            # ✅ إذا ما لقينا فورمات، نجرب طريقة ثانية
             if not formats:
-                direct_url = info.get('url') or info.get('manifest_url')
-                if direct_url:
+                # جلب أفضل تنسيق مباشر
+                best = info.get('url')
+                if best:
                     formats.append({
                         'quality': 'Best',
                         'height': 0,
                         'ext': 'mp4',
-                        'url': direct_url,
+                        'url': best,
                         'filesize': 0,
                         'has_video': True,
                         'has_audio': True,
                         'format_id': 'best'
                     })
-
-            # ✅ الطريقة الثالثة: جلب من `requested_formats`
-            if not formats and info.get('requested_formats'):
-                for f in info['requested_formats']:
-                    if f.get('url'):
-                        formats.append({
-                            'quality': f.get('format_note', 'Best'),
-                            'height': 0,
-                            'ext': f.get('ext', 'mp4'),
-                            'url': f.get('url'),
-                            'filesize': 0,
-                            'has_video': True,
-                            'has_audio': True,
-                            'format_id': f.get('format_id', 'best')
-                        })
+                else:
+                    # محاولة الحصول على التنسيقات من قائمة formats
+                    for f in info.get('formats', []):
+                        if f.get('url'):
+                            formats.append({
+                                'quality': f.get('format_note', 'Unknown'),
+                                'height': f.get('height', 0) or 0,
+                                'ext': f.get('ext', 'mp4'),
+                                'url': f.get('url'),
+                                'filesize': f.get('filesize') or 0,
+                                'has_video': f.get('vcodec') != 'none',
+                                'has_audio': f.get('acodec') != 'none',
+                                'format_id': f.get('format_id', 'unknown')
+                            })
 
             # ✅ ترتيب حسب الجودة
             formats.sort(key=lambda x: x['height'] if x['height'] is not None else 0, reverse=True)
