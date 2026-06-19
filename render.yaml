@@ -1,6 +1,9 @@
 services:
   - type: web
-    name: video-api
+    name: video-api-1-2
     runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn server:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.0
