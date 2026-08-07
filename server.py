@@ -2,126 +2,209 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import yt_dlp
 import os
-import json
 
 app = Flask(__name__)
 CORS(app)
 
-# ✅ إعدادات قوية ومحدثة
-YDL_OPTS = {
-    'quiet': True,
-    'no_warnings': True,
-    'noplaylist': True,
-    'ignoreerrors': True,
-    'extract_flat': False,
-    'no_color': True,
-    'geo_bypass': True,
-    'cookiefile': None,  # ✅ مهم لإنستغرام
-    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'referer': 'https://www.instagram.com/',
+
+# إعدادات yt-dlp قوية
+YDL_OPTIONS = {
+    "quiet": True,
+    "no_warnings": True,
+    "noplaylist": True,
+
+    # تجاوز بعض القيود
+    "geo_bypass": True,
+    "nocheckcertificate": True,
+
+    # معلومات المتصفح
+    "http_headers": {
+        "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 Chrome/120 Safari/537.36"
+    },
+
+    # استخراج الروابط فقط
+    "skip_download": True,
+
+    # دمج الفيديو والصوت
+    "format":
+    "bestvideo+bestaudio/best",
+
+    # لا توقف بسبب خطأ صيغة
+    "ignoreerrors": False,
 }
+
 
 @app.route("/")
 def home():
-    return jsonify({"status": "success", "message": "VidSnap API Running"})
+    return jsonify({
+        "status": "online",
+        "message": "VidSnap API Running"
+    })
 
-@app.route("/extract", methods=["POST", "OPTIONS"])
+
+@app.route("/extract", methods=["POST"])
 def extract():
-    if request.method == "OPTIONS":
-        response = jsonify()
-        response.headers.add("Access-Control-Allow-Origin", "*")
-        response.headers.add("Access-Control-Allow-Headers", "*")
-        response.headers.add("Access-Control-Allow-Methods", "*")
-        return response
 
-    data = request.get_json(silent=True)
+    data = request.get_json()
 
     if not data or "url" not in data:
-        return jsonify({"error": "No URL provided"}), 400
+        return jsonify({
+            "error": "URL missing"
+        }), 400
+
 
     url = data["url"]
-    print(f"📥 Extracting: {url}")
 
-    ydl_opts = YDL_OPTS.copy()
+    print("Downloading:", url)
+
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
 
-            formats = []
+        with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
 
-            for f in info.get('formats', []):
-                if not f.get('url'):
-                    continue
+            info = ydl.extract_info(
+                url,
+                download=False
+            )
 
-                has_video = f.get('vcodec') != 'none'
-                has_audio = f.get('acodec') != 'none'
 
-                height = f.get('height', 0)
-                if height is None:
-                    height = 0
+        formats = []
 
-                quality = f"{height}p" if height > 0 else 'Audio' if has_audio else 'Video'
 
-                formats.append({
-                    'quality': quality,
-                    'height': height,
-                    'ext': f.get('ext', 'mp4'),
-                    'url': f.get('url'),
-                    'filesize': f.get('filesize') or f.get('filesize_approx') or 0,
-                    'has_video': has_video,
-                    'has_audio': has_audio,
-                    'format_id': f.get('format_id', 'unknown')
-                })
+        for f in info.get("formats", []):
 
-            # ✅ إذا ما لقينا فورمات، نجرب طريقة ثانية
-            if not formats:
-                # جلب أفضل تنسيق مباشر
-                best = info.get('url')
-                if best:
-                    formats.append({
-                        'quality': 'Best',
-                        'height': 0,
-                        'ext': 'mp4',
-                        'url': best,
-                        'filesize': 0,
-                        'has_video': True,
-                        'has_audio': True,
-                        'format_id': 'best'
-                    })
-                else:
-                    # محاولة الحصول على التنسيقات من قائمة formats
-                    for f in info.get('formats', []):
-                        if f.get('url'):
-                            formats.append({
-                                'quality': f.get('format_note', 'Unknown'),
-                                'height': f.get('height', 0) or 0,
-                                'ext': f.get('ext', 'mp4'),
-                                'url': f.get('url'),
-                                'filesize': f.get('filesize') or 0,
-                                'has_video': f.get('vcodec') != 'none',
-                                'has_audio': f.get('acodec') != 'none',
-                                'format_id': f.get('format_id', 'unknown')
-                            })
+            video = f.get("vcodec") != "none"
+            audio = f.get("acodec") != "none"
 
-            # ✅ ترتيب حسب الجودة
-            formats.sort(key=lambda x: x['height'] if x['height'] is not None else 0, reverse=True)
 
-            best_format = next((f for f in formats if f['has_video'] and f['has_audio']), formats[0] if formats else None)
+            if not f.get("url"):
+                continue
 
-            return jsonify({
-                'status': 'success',
-                'title': info.get('title', 'Video'),
-                'thumbnail': info.get('thumbnail', ''),
-                'duration': info.get('duration', 0),
-                'best_url': best_format['url'] if best_format else '',
-                'formats': formats
+
+            height = f.get("height") or 0
+
+
+            if height:
+                quality = str(height) + "p"
+            else:
+                quality = "Audio"
+
+
+            formats.append({
+
+                "format_id":
+                f.get("format_id"),
+
+
+                "quality":
+                quality,
+
+
+                "height":
+                height,
+
+
+                "ext":
+                f.get("ext"),
+
+
+                "url":
+                f.get("url"),
+
+
+                "filesize":
+                f.get("filesize")
+                or f.get("filesize_approx")
+                or 0,
+
+
+                "has_video":
+                video,
+
+
+                "has_audio":
+                audio,
+
+
+                "headers":
+                f.get("http_headers", {})
+
             })
 
-    except Exception as e:
-        print(f"❌ Error: {e}")
-        return jsonify({"error": str(e)}), 500
 
-if __name__ == "__main__":
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+
+        # ترتيب الجودة
+        formats.sort(
+            key=lambda x:x["height"],
+            reverse=True
+        )
+
+
+        if len(formats)==0:
+
+            return jsonify({
+
+                "status":"failed",
+
+                "message":
+                "No formats found"
+
+            })
+
+
+        return jsonify({
+
+            "status":
+            "success",
+
+
+            "title":
+            info.get("title","Video"),
+
+
+            "thumbnail":
+            info.get("thumbnail",""),
+
+
+            "duration":
+            info.get("duration",0),
+
+
+            "formats":
+            formats
+
+        })
+
+
+    except Exception as e:
+
+        print("ERROR:",e)
+
+        return jsonify({
+
+            "status":
+            "error",
+
+            "message":
+            str(e)
+
+        }),500
+
+
+
+if __name__=="__main__":
+
+    port=int(
+        os.environ.get(
+            "PORT",
+            5000
+        )
+    )
+
+
+    app.run(
+        host="0.0.0.0",
+        port=port
+    )
