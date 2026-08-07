@@ -7,41 +7,38 @@ app = Flask(__name__)
 CORS(app)
 
 
-# إعدادات yt-dlp قوية
 YDL_OPTIONS = {
+
     "quiet": True,
     "no_warnings": True,
     "noplaylist": True,
 
-    # تجاوز بعض القيود
     "geo_bypass": True,
     "nocheckcertificate": True,
 
-    # معلومات المتصفح
     "http_headers": {
         "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 Chrome/120 Safari/537.36"
     },
 
-    # استخراج الروابط فقط
+    # استخراج فقط بدون تحميل
     "skip_download": True,
 
-    # دمج الفيديو والصوت
-    "format":
-    "bestvideo+bestaudio/best",
-
-    # لا توقف بسبب خطأ صيغة
     "ignoreerrors": False,
 }
 
 
+
 @app.route("/")
 def home():
+
     return jsonify({
         "status": "online",
         "message": "VidSnap API Running"
     })
+
+
 
 
 @app.route("/extract", methods=["POST"])
@@ -52,12 +49,12 @@ def extract():
     if not data or "url" not in data:
         return jsonify({
             "error": "URL missing"
-        }), 400
+        }),400
 
 
     url = data["url"]
 
-    print("Downloading:", url)
+    print("Extracting:", url)
 
 
     try:
@@ -70,26 +67,38 @@ def extract():
             )
 
 
+
         formats = []
 
 
         for f in info.get("formats", []):
-
-            video = f.get("vcodec") != "none"
-            audio = f.get("acodec") != "none"
 
 
             if not f.get("url"):
                 continue
 
 
+            has_video = (
+                f.get("vcodec")
+                and f.get("vcodec") != "none"
+            )
+
+
+            has_audio = (
+                f.get("acodec")
+                and f.get("acodec") != "none"
+            )
+
+
             height = f.get("height") or 0
 
 
-            if height:
-                quality = str(height) + "p"
+
+            if height > 0:
+                quality = f"{height}p"
             else:
                 quality = "Audio"
+
 
 
             formats.append({
@@ -121,11 +130,11 @@ def extract():
 
 
                 "has_video":
-                video,
+                bool(has_video),
 
 
                 "has_audio":
-                audio,
+                bool(has_audio),
 
 
                 "headers":
@@ -135,23 +144,34 @@ def extract():
 
 
 
-        # ترتيب الجودة
-        formats.sort(
+
+        # حذف التكرار
+        unique_formats = []
+
+        seen = set()
+
+
+        for f in formats:
+
+            key = (
+                f["quality"],
+                f["ext"],
+                f["has_video"],
+                f["has_audio"]
+            )
+
+            if key not in seen:
+
+                seen.add(key)
+                unique_formats.append(f)
+
+
+
+        unique_formats.sort(
             key=lambda x:x["height"],
             reverse=True
         )
 
-
-        if len(formats)==0:
-
-            return jsonify({
-
-                "status":"failed",
-
-                "message":
-                "No formats found"
-
-            })
 
 
         return jsonify({
@@ -173,14 +193,17 @@ def extract():
 
 
             "formats":
-            formats
+            unique_formats
 
         })
 
 
+
     except Exception as e:
 
+
         print("ERROR:",e)
+
 
         return jsonify({
 
@@ -194,9 +217,13 @@ def extract():
 
 
 
+
+
+
 if __name__=="__main__":
 
-    port=int(
+
+    port = int(
         os.environ.get(
             "PORT",
             5000
