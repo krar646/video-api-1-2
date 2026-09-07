@@ -3,11 +3,11 @@ from flask_cors import CORS
 import yt_dlp
 import os
 
-# 1. تعريف تطبيق الفلاسك في البداية تماماً
+# 1. تعريف تطبيق الفلاسك
 app = Flask(__name__)
 CORS(app)
 
-# 2. إعدادات yt_dlp المتقدمة لتجنب الحظر
+# 2. إعدادات yt_dlp المتقدمة لتجاوز القيود
 YDL_OPTIONS = {
     "quiet": True,
     "no_warnings": True,
@@ -30,7 +30,7 @@ YDL_OPTIONS = {
 def home():
     return jsonify({"status": "online", "message": "VidSnap API Running"})
 
-# 4. مسار استخراج الروابط والفيديو (يضمن إرجاع الفيديو مع الصوت مدمجين)
+# 4. مسار استخراج الروابط مع ضمان جلب الصوت والصورة معاً
 @app.route("/extract", methods=["POST"])
 def extract():
     data = request.get_json()
@@ -48,7 +48,7 @@ def extract():
         formats = []
         combined_url = None
 
-        # فحص الصيغ المتاحة واستخراج الروابط
+        # فحص الصيغ المتاحة واستخراج الروابط بدقة
         for f in info.get("formats", []):
             f_url = f.get("url")
             if not f_url:
@@ -70,11 +70,11 @@ def extract():
             }
             formats.append(item)
 
-            # نبحث عن أول صيغة تحتوي على فيديو وصوت معاً لضمان وجود الصوت والصورة
+            # البحث الدقيق عن أول صيغة تحتوي على فيديو وصوت معاً لضمان عدم اكتمال التحميل بصوت فقط
             if has_video and has_audio and not combined_url:
                 combined_url = f_url
 
-        # إذا لم نجد رابط مدمج، نأخذ الرابط العام كبديل
+        # إذا لم يتم العثور على رابط مدمج، نلجأ للرابط الأساسي كخطة بديلة
         if not combined_url:
             combined_url = info.get("url")
 
@@ -91,7 +91,7 @@ def extract():
         print("ERROR:", e)
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# 5. تشغيل السيرفر في النهاية
+# 5. تشغيل السيرفر
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
