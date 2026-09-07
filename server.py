@@ -3,7 +3,7 @@ from flask_cors import CORS
 import yt_dlp
 import os
 
-# 1. تعريف تطبيق الفلاسك في البداية تماماً (هذا ما كان يسبب الخطأ)
+# 1. تعريف تطبيق الفلاسك في البداية تماماً
 app = Flask(__name__)
 CORS(app)
 
@@ -26,6 +26,11 @@ YDL_OPTIONS = {
 }
 
 # 3. مسار فحص الحالة الرئيسي
+@app.route("/")
+def home():
+    return jsonify({"status": "online", "message": "VidSnap API Running"})
+
+# 4. مسار استخراج الروابط والفيديو (يضمن إرجاع الفيديو مع الصوت مدمجين)
 @app.route("/extract", methods=["POST"])
 def extract():
     data = request.get_json()
@@ -37,73 +42,56 @@ def extract():
     print("Extracting:", url)
 
     try:
-        # إعدادات خاصة تجبر yt_dlp على اختيار صيغة MP4 واضحة ومدمجة لتجنب التلف
-        ydl_opts_custom = YDL_OPTIONS.copy()
-        ydl_opts_custom["format"] = "best[ext=mp4]/best"
-
-        with yt_dlp.YoutubeDL(ydl_opts_custom) as ydl:
+        with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
             info = ydl.extract_info(url, download=False)
 
-        # إذا كان الفيديو يحتوي على رابط مباشرة أو formats
         formats = []
-        fallback_url = info.get("url")
+        combined_url = None
 
+        # فحص الصيغ المتاحة واستخراج الروابط
         for f in info.get("formats", []):
             f_url = f.get("url")
             if not f_url:
-                continue
-
-            # نأخذ فقط الصيغ التي تدعم MP4 وتجنب الصيغ الغريبة التي تسبب التشويش
-            ext = f.get("ext")
-            if ext != "mp4" and ext != "webm":
                 continue
 
             has_video = f.get("vcodec") != "none" and f.get("vcodec") is not None
             has_audio = f.get("acodec") != "none" and f.get("acodec") is not None
             height = f.get("height") or 0
 
-            formats.append({
+            item = {
                 "format_id": f.get("format_id"),
                 "url": f_url,
-                "ext": ext,
+                "ext": f.get("ext", "mp4"),
                 "height": height,
                 "quality": f"{height}p" if height > 0 else "audio",
                 "filesize": f.get("filesize") or f.get("filesize_approx") or 0,
                 "has_video": has_video,
                 "has_audio": has_audio
-            })
+            }
+            formats.append(item)
 
-        # إذا لم تجد القائمة صيغاً، نضع الرابط الأساسي كخطة بديلة آمنة
-        if not formats and fallback_url:
-            formats.append({
-                "format_id": "default",
-                "url": fallback_url,
-                "ext": "mp4",
-                "height": 720,
-                "quality": "720p",
-                "filesize": 0,
-                "has_video": True,
-                "has_audio": True
-            })
+            # نبحث عن أول صيغة تحتوي على فيديو وصوت معاً لضمان وجود الصوت والصورة
+            if has_video and has_audio and not combined_url:
+                combined_url = f_url
 
-        # اختيار أفضل رابط مدمج (فيديو وصوت معاً وبصيغة صحيحة)
-        best_url = fallback_url
-        for f in formats:
-            if f.get("has_video") and f.get("has_audio"):
-                best_url = f["url"]
-                break
+        # إذا لم نجد رابط مدمج، نأخذ الرابط العام كبديل
+        if not combined_url:
+            combined_url = info.get("url")
 
         return jsonify({
             "status": "success",
             "title": info.get("title", "Video"),
             "thumbnail": info.get("thumbnail", ""),
             "duration": info.get("duration", 0),
-            "combined_url": best_url,
-            "video_url": best_url,
-            "audio_url": best_url,
+            "combined_url": combined_url,
             "formats": formats
         })
 
     except Exception as e:
         print("ERROR:", e)
         return jsonify({"status": "error", "message": str(e)}), 500
+
+# 5. تشغيل السيرفر في النهاية
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
