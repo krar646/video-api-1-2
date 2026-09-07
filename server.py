@@ -2,35 +2,24 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import yt_dlp
 import os
+import random
 
-# 1. تعريف تطبيق الفلاسك
 app = Flask(__name__)
 CORS(app)
 
-# 2. إعدادات yt_dlp المتقدمة لتجاوز القيود
-YDL_OPTIONS = {
-    "quiet": True,
-    "no_warnings": True,
-    "noplaylist": True,
-    "geo_bypass": True,
-    "nocheckcertificate": True,
-    "skip_download": True,
-    "ignoreerrors": False,
-    "extract_flat": False,
-    "http_headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Sec-Fetch-Mode": "navigate"
-    }
-}
+# قائمة متنوعة من المتصفحات وأنظمة التشغيل لتغيير الـ User-Agent مع كل طلب (تجنب الحظر)
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1"
+]
 
-# 3. مسار فحص الحالة الرئيسي
 @app.route("/")
 def home():
-    return jsonify({"status": "online", "message": "VidSnap API Running"})
+    return jsonify({"status": "online", "message": "VidSnap API Secure & Running"})
 
-# 4. مسار استخراج الروابط مع ضمان جلب الصوت والصورة معاً
 @app.route("/extract", methods=["POST"])
 def extract():
     data = request.get_json()
@@ -39,16 +28,43 @@ def extract():
         return jsonify({"status": "error", "message": "URL missing"}), 400
 
     url = data["url"]
-    print("Extracting:", url)
+    print("Extracting for millions:", url)
+
+    # اختيار هوية متصفح عشوائية مع كل طلب لمنع الحظر
+    selected_user_agent = random.choice(USER_AGENTS)
+
+    ydl_options = {
+        "quiet": True,
+        "no_warnings": True,
+        "noplaylist": True,
+        "geo_bypass": True,
+        "nocheckcertificate": True,
+        "skip_download": True,
+        "ignoreerrors": True,
+        "extract_flat": False,
+        "extractor_args": {
+            "instagram": {
+                "webpage_download": [True]
+            }
+        },
+        "http_headers": {
+            "User-Agent": selected_user_agent,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Sec-Fetch-Mode": "navigate"
+        }
+    }
 
     try:
-        with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
+        with yt_dlp.YoutubeDL(ydl_options) as ydl:
             info = ydl.extract_info(url, download=False)
+
+        if not info:
+            return jsonify({"status": "error", "message": "Failed to extract video info or link restricted."}), 400
 
         formats = []
         combined_url = None
 
-        # فحص الصيغ المتاحة واستخراج الروابط بدقة
         for f in info.get("formats", []):
             f_url = f.get("url")
             if not f_url:
@@ -70,11 +86,10 @@ def extract():
             }
             formats.append(item)
 
-            # البحث الدقيق عن أول صيغة تحتوي على فيديو وصوت معاً لضمان عدم اكتمال التحميل بصوت فقط
+            # البحث عن أول رابط مدمج يحتوي على الصوت والصورة معاً
             if has_video and has_audio and not combined_url:
                 combined_url = f_url
 
-        # إذا لم يتم العثور على رابط مدمج، نلجأ للرابط الأساسي كخطة بديلة
         if not combined_url:
             combined_url = info.get("url")
 
@@ -88,10 +103,9 @@ def extract():
         })
 
     except Exception as e:
-        print("ERROR:", e)
-        return jsonify({"status": "error", "message": str(e)}), 500
+        print("ERROR:", str(e))
+        return jsonify({"status": "error", "message": "Server error while processing request."}), 500
 
-# 5. تشغيل السيرفر
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
