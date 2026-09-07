@@ -1,3 +1,36 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import yt_dlp
+import os
+
+# 1. تعريف تطبيق الفلاسك في البداية تماماً (هذا ما كان يسبب الخطأ)
+app = Flask(__name__)
+CORS(app)
+
+# 2. إعدادات yt_dlp المتقدمة لتجنب الحظر
+YDL_OPTIONS = {
+    "quiet": True,
+    "no_warnings": True,
+    "noplaylist": True,
+    "geo_bypass": True,
+    "nocheckcertificate": True,
+    "skip_download": True,
+    "ignoreerrors": False,
+    "extract_flat": False,
+    "http_headers": {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Sec-Fetch-Mode": "navigate"
+    }
+}
+
+# 3. مسار فحص الحالة الرئيسي
+@app.route("/")
+def home():
+    return jsonify({"status": "online", "message": "VidSnap API Running"})
+
+# 4. مسار استخراج الروابط والفيديو (بالحماية الكاملة لمنع القيم الفارغة)
 @app.route("/extract", methods=["POST"])
 def extract():
     data = request.get_json()
@@ -52,9 +85,9 @@ def extract():
         audio_formats.sort(key=lambda x: x.get("filesize", 0), reverse=True)
 
         # 🛡️ الخطة البديلة لمنع رجوع الروابط فارغة نهائياً:
-        fallback_url = info.get("url") # الرابط الأساسي العام للفيديو إن وجد
+        fallback_url = info.get("url")
 
-        # تحديد رابط الـ combined (إن لم يوجد، نأخذ أفضل فيديو متاح)
+        # تحديد رابط الـ combined
         final_combined = None
         if combined_formats:
             final_combined = combined_formats[0]["url"]
@@ -75,7 +108,7 @@ def extract():
         if audio_formats:
             final_audio = audio_formats[0]["url"]
 
-        # إذا كانت القائمة formats فارغة تماماً، ننشئ عنصراً افتراضياً من الرابط العام لكي لا يتعطل التطبيق
+        # إذا كانت القائمة formats فارغة تماماً، ننشئ عنصراً افتراضياً
         if not formats and fallback_url:
             formats.append({
                 "format_id": "default",
@@ -102,3 +135,8 @@ def extract():
     except Exception as e:
         print("ERROR:", e)
         return jsonify({"status": "error", "message": str(e)}), 500
+
+# 5. تشغيل السيرفر في النهاية
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
