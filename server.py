@@ -63,51 +63,37 @@ def extract():
             return jsonify({"status": "error", "message": "Failed to extract video info or link restricted."}), 400
 
         formats = []
-        best_url = None
-        max_height = -1
+        best_url = info.get("url")
 
+        # محاولة جلب جميع الصيغ المتاحة
         for f in info.get("formats", []):
             f_url = f.get("url")
             if not f_url:
                 continue
 
-            has_video = f.get("vcodec") != "none" and f.get("vcodec") is not None
-            has_audio = f.get("acodec") != "none" and f.get("acodec") is not None
             height = f.get("height") or 0
+            quality_str = f"{height}p" if height > 0 else "Standard"
 
-            # نجمع فقط الفورمات التي تحتوي على صوت وفيديو معاً لضمان عدم تحميل فيديو صامت
-            if has_video and has_audio:
-                item = {
-                    "format_id": f.get("format_id"),
-                    "url": f_url,
-                    "ext": f.get("ext", "mp4"),
-                    "height": height,
-                    "quality": f"{height}p" if height > 0 else "Standard",
-                    "filesize": f.get("filesize") or f.get("filesize_approx") or 0,
-                    "has_video": True,
-                    "has_audio": True
-                }
-                formats.append(item)
+            formats.append({
+                "format_id": f.get("format_id"),
+                "url": f_url,
+                "ext": f.get("ext", "mp4"),
+                "height": height,
+                "quality": quality_str,
+                "filesize": f.get("filesize") or f.get("filesize_approx") or 0,
+            })
 
-                if height >= max_height:
-                    max_height = height
-                    best_url = f_url
-
-        # إذا لم يجد فورمات مدمجة بالصوت والصورة معاً، نستخدم الرابط الأساسي العام للمنشور (الذي يضم الصوت والصورة غالباً)
-        if not formats:
-            main_url = info.get("url")
-            if main_url:
-                formats.append({
-                    "format_id": "default",
-                    "url": main_url,
-                    "ext": "mp4",
-                    "height": info.get("height") or 720,
-                    "quality": "Standard",
-                    "filesize": 0,
-                    "has_video": True,
-                    "has_audio": True
-                })
-                best_url = main_url
+        # الحل الجذري لمنع رسالة "لا توجد خيارات" نهائياً:
+        # إذا لم يجد يوتيوب/انستغرام فورمات مفصلة، نأخذ الرابط الأساسي للمنشور
+        if not formats and best_url:
+            formats.append({
+                "format_id": "default",
+                "url": best_url,
+                "ext": "mp4",
+                "height": 720,
+                "quality": "Standard",
+                "filesize": 0
+            })
 
         if not best_url and formats:
             best_url = formats[0]["url"]
@@ -123,7 +109,7 @@ def extract():
 
     except Exception as e:
         print("ERROR:", str(e))
-        return jsonify({"status": "error", "message": "Server error while processing request."}), 500
+        return jsonify({"status": "error", "message": f"Server error: {str(e)}"}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
