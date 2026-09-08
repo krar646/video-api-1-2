@@ -63,7 +63,7 @@ def extract():
             return jsonify({"status": "error", "message": "Failed to extract video info or link restricted."}), 400
 
         formats = []
-        best_url = None
+        best_url = info.get("url")
         max_height = -1
 
         for f in info.get("formats", []):
@@ -71,17 +71,17 @@ def extract():
             if not f_url:
                 continue
 
-            has_video = f.get("vcodec") != "none" and f.get("vcodec") is not None
-            has_audio = f.get("acodec") != "none" and f.get("acodec") is not None
+            has_video = f.get("vcodec") != "none" and f.get("vcodec"] is not None
             height = f.get("height") or 0
 
-            if has_video and has_audio:
+            # جمع صيغ الفيديو المتاحة لكي تظهر خيارات الجودة في التطبيق دائماً
+            if has_video:
                 item = {
                     "format_id": f.get("format_id"),
                     "url": f_url,
                     "ext": f.get("ext", "mp4"),
                     "height": height,
-                    "quality": f"{height}p" if height > 0 else "standard",
+                    "quality": f"{height}p" if height > 0 else "Standard",
                     "filesize": f.get("filesize") or f.get("filesize_approx") or 0,
                 }
                 formats.append(item)
@@ -90,10 +90,18 @@ def extract():
                     max_height = height
                     best_url = f_url
 
+        if not formats and info.get("url"):
+            formats.append({
+                "format_id": "default",
+                "url": info.get("url"),
+                "ext": "mp4",
+                "height": 0,
+                "quality": "Standard",
+                "filesize": 0
+            })
+
         if not best_url and formats:
             best_url = formats[0]["url"]
-        elif not best_url:
-            best_url = info.get("url")
 
         return jsonify({
             "status": "success",
