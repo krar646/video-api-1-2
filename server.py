@@ -71,10 +71,9 @@ def extract():
             if not f_url:
                 continue
 
-            has_video = f.get("vcodec") != "none" and f.get("vcodec"] is not None
+            has_video = f.get("vcodec") != "none" and f.get("vcodec") is not None
             height = f.get("height") or 0
 
-            # جمع صيغ الفيديو المتاحة لكي تظهر خيارات الجودة في التطبيق دائماً
             if has_video:
                 item = {
                     "format_id": f.get("format_id"),
