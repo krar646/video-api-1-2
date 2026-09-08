@@ -24,6 +24,7 @@ def extract():
         return jsonify({"status": "error", "message": "URL missing"}), 400
 
     url = data["url"]
+    print("Extracting for:", url)
     selected_user_agent = random.choice(USER_AGENTS)
 
     ydl_options = {
@@ -34,6 +35,11 @@ def extract():
         "nocheckcertificate": True,
         "skip_download": True,
         "ignoreerrors": True,
+        "extractor_args": {
+            "instagram": {
+                "webpage_download": [True]
+            }
+        },
         "http_headers": {
             "User-Agent": selected_user_agent,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -60,19 +66,22 @@ def extract():
             vcodec = f.get("vcodec")
             acodec = f.get("acodec")
 
-            # البحث عن رابط مدمج إن وجد
-            if vcodec != "none" and vcodec is not None and acodec != "none" and acodec is not None:
+            has_video = vcodec != "none" and vcodec is not None
+            has_audio = acodec != "none" and acodec is not None
+
+            # رابط مدمج (صوت وفيديو معاً)
+            if has_video and has_audio:
                 combined_url = f_url
-            # البحث عن فيديو منفصل
-            elif vcodec != "none" and vcodec is not None and (acodec == "none" or acodec is None):
+            # فيديو منفصل فقط
+            elif has_video and not has_audio:
                 video_url = f_url
-            # البحث عن صوت منفصل
-            elif (vcodec == "none" or vcodec is None) and acodec != "none" and acodec is not None:
+            # صوت منفصل فقط
+            elif not has_video and has_audio:
                 audio_url = f_url
 
-        # إذا لمن نجد منفصلين، نعتمد الرابط العام
-        if not combined_url and not video_url:
-            combined_url = info.get("url")
+        # إذا لم نجد فيديو منفصل، نأخذ الرابط العام
+        if not video_url:
+            video_url = info.get("url")
 
         return jsonify({
             "status": "success",
@@ -84,6 +93,7 @@ def extract():
         })
 
     except Exception as e:
+        print("ERROR:", str(e))
         return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == "__main__":
