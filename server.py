@@ -7,7 +7,6 @@ import random
 app = Flask(__name__)
 CORS(app)
 
-# قائمة متنوعة من المتصفحات وأنظمة التشغيل لتغيير الـ User-Agent مع كل طلب (تجنب الحظر)
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
@@ -30,7 +29,6 @@ def extract():
     url = data["url"]
     print("Extracting for:", url)
 
-    # اختيار هوية متصفح عشوائية مع كل طلب لمنع الحظر
     selected_user_agent = random.choice(USER_AGENTS)
 
     ydl_options = {
@@ -41,7 +39,6 @@ def extract():
         "nocheckcertificate": True,
         "skip_download": True,
         "ignoreerrors": True,
-        "extract_flat": False,
         "extractor_args": {
             "instagram": {
                 "webpage_download": [True]
@@ -63,12 +60,8 @@ def extract():
             return jsonify({"status": "error", "message": "Failed to extract video info or link restricted."}), 400
 
         formats = []
-        combined_url = None
-        best_video_url = None
-        best_audio_url = None
-
-        max_video_height = -1
-        max_audio_bitrate = -1
+        best_url = None
+        max_height = -1
 
         for f in info.get("formats", []):
             f_url = f.get("url")
@@ -78,7 +71,6 @@ def extract():
             has_video = f.get("vcodec") != "none" and f.get("vcodec") is not None
             has_audio = f.get("acodec") != "none" and f.get("acodec") is not None
             height = f.get("height") or 0
-            abr = f.get("abr") or f.get("tbr") or 0
 
             item = {
                 "format_id": f.get("format_id"),
@@ -92,43 +84,21 @@ def extract():
             }
             formats.append(item)
 
-            # اختيار أعلى جودة فيديو متاحة
-            if has_video:
-                if height >= max_video_height:
-                    max_video_height = height
-                    best_video_url = f_url
+            # اختيار الرابط الذي يحتوي على فيديو وصوت مدمجين معاً مسبقاً بأعلى جودة
+            if has_video and has_audio:
+                if height >= max_height:
+                    max_height = height
+                    best_url = f_url
 
-            # اختيار أعلى جودة صوت متاحة
-            if not has_video and has_audio:
-                if abr >= max_audio_bitrate:
-                    max_audio_bitrate = abr
-                    best_audio_url = f_url
-
-            # البحث عن أول رابط مدمج يحتوي على الصوت والصورة معاً (إن وجد)
-            if has_video and has_audio and not combined_url:
-                combined_url = f_url
-
-        if not combined_url:
-            combined_url = info.get("url")
-
-        # التأكد من وجود روابط بديلة في حال لم يتم العثور على مسارات منفصلة بدقة
-        if not best_video_url:
-            best_video_url = combined_url
-
-        if not best_audio_url:
-            for f in formats:
-                if f["has_audio"]:
-                    best_audio_url = f["url"]
-                    break
+        if not best_url:
+            best_url = info.get("url")
 
         return jsonify({
             "status": "success",
             "title": info.get("title", "Video"),
             "thumbnail": info.get("thumbnail", ""),
             "duration": info.get("duration", 0),
-            "combined_url": combined_url,
-            "video_url": best_video_url,
-            "audio_url": best_audio_url,
+            "combined_url": best_url,
             "formats": formats
         })
 
