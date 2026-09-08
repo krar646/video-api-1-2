@@ -63,7 +63,7 @@ def extract():
             return jsonify({"status": "error", "message": "Failed to extract video info or link restricted."}), 400
 
         formats = []
-        best_url = info.get("url")
+        best_url = None
         max_height = -1
 
         for f in info.get("formats", []):
@@ -72,9 +72,11 @@ def extract():
                 continue
 
             has_video = f.get("vcodec") != "none" and f.get("vcodec") is not None
+            has_audio = f.get("acodec") != "none" and f.get("acodec") is not None
             height = f.get("height") or 0
 
-            if has_video:
+            # نجمع فقط الفورمات التي تحتوي على صوت وفيديو معاً لضمان عدم تحميل فيديو صامت
+            if has_video and has_audio:
                 item = {
                     "format_id": f.get("format_id"),
                     "url": f_url,
@@ -82,6 +84,8 @@ def extract():
                     "height": height,
                     "quality": f"{height}p" if height > 0 else "Standard",
                     "filesize": f.get("filesize") or f.get("filesize_approx") or 0,
+                    "has_video": True,
+                    "has_audio": True
                 }
                 formats.append(item)
 
@@ -89,15 +93,21 @@ def extract():
                     max_height = height
                     best_url = f_url
 
-        if not formats and info.get("url"):
-            formats.append({
-                "format_id": "default",
-                "url": info.get("url"),
-                "ext": "mp4",
-                "height": 0,
-                "quality": "Standard",
-                "filesize": 0
-            })
+        # إذا لم يجد فورمات مدمجة بالصوت والصورة معاً، نستخدم الرابط الأساسي العام للمنشور (الذي يضم الصوت والصورة غالباً)
+        if not formats:
+            main_url = info.get("url")
+            if main_url:
+                formats.append({
+                    "format_id": "default",
+                    "url": main_url,
+                    "ext": "mp4",
+                    "height": info.get("height") or 720,
+                    "quality": "Standard",
+                    "filesize": 0,
+                    "has_video": True,
+                    "has_audio": True
+                })
+                best_url = main_url
 
         if not best_url and formats:
             best_url = formats[0]["url"]
