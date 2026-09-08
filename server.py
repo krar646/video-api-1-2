@@ -28,7 +28,7 @@ def extract():
         return jsonify({"status": "error", "message": "URL missing"}), 400
 
     url = data["url"]
-    print("Extracting for millions:", url)
+    print("Extracting for:", url)
 
     # اختيار هوية متصفح عشوائية مع كل طلب لمنع الحظر
     selected_user_agent = random.choice(USER_AGENTS)
@@ -64,6 +64,11 @@ def extract():
 
         formats = []
         combined_url = None
+        best_video_url = None
+        best_audio_url = None
+
+        max_video_height = -1
+        max_audio_bitrate = -1
 
         for f in info.get("formats", []):
             f_url = f.get("url")
@@ -73,6 +78,7 @@ def extract():
             has_video = f.get("vcodec") != "none" and f.get("vcodec") is not None
             has_audio = f.get("acodec") != "none" and f.get("acodec") is not None
             height = f.get("height") or 0
+            abr = f.get("abr") or f.get("tbr") or 0
 
             item = {
                 "format_id": f.get("format_id"),
@@ -86,12 +92,34 @@ def extract():
             }
             formats.append(item)
 
-            # البحث عن أول رابط مدمج يحتوي على الصوت والصورة معاً
+            # اختيار أعلى جودة فيديو متاحة
+            if has_video:
+                if height >= max_video_height:
+                    max_video_height = height
+                    best_video_url = f_url
+
+            # اختيار أعلى جودة صوت متاحة
+            if not has_video and has_audio:
+                if abr >= max_audio_bitrate:
+                    max_audio_bitrate = abr
+                    best_audio_url = f_url
+
+            # البحث عن أول رابط مدمج يحتوي على الصوت والصورة معاً (إن وجد)
             if has_video and has_audio and not combined_url:
                 combined_url = f_url
 
         if not combined_url:
             combined_url = info.get("url")
+
+        # التأكد من وجود روابط بديلة في حال لم يتم العثور على مسارات منفصلة بدقة
+        if not best_video_url:
+            best_video_url = combined_url
+
+        if not best_audio_url:
+            for f in formats:
+                if f["has_audio"]:
+                    best_audio_url = f["url"]
+                    break
 
         return jsonify({
             "status": "success",
@@ -99,6 +127,8 @@ def extract():
             "thumbnail": info.get("thumbnail", ""),
             "duration": info.get("duration", 0),
             "combined_url": combined_url,
+            "video_url": best_video_url,
+            "audio_url": best_audio_url,
             "formats": formats
         })
 
