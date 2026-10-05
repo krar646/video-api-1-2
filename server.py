@@ -79,7 +79,11 @@ def extract():
             vcodec = f.get("vcodec")
             acodec = f.get("acodec")
             height = f.get("height", 720)
-            
+
+            # 🌟 جلب الحجم الفعلي أو التقريبي من yt_dlp
+            filesize = f.get("filesize")
+            filesize_approx = f.get("filesize_approx")
+
             has_video = vcodec != "none" and vcodec is not None
             has_audio = acodec != "none" and acodec is not None
 
@@ -96,7 +100,9 @@ def extract():
                 "has_video": has_video,
                 "has_audio": has_audio,
                 "vcodec": vcodec,
-                "acodec": acodec
+                "acodec": acodec,
+                "filesize": filesize,
+                "filesize_approx": filesize_approx
             })
 
         if not video_url:
