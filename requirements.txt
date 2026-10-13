@@ -1,6 +1,7 @@
-Flask==3.0.2
-Flask-Cors==4.0.0
+Flask
+Flask-Cors
 yt-dlp
-beautifulsoup4==4.12.3
-requests==2.31.0
-gunicorn==21.2.0
+beautifulsoup4
+requests
+gunicorn
+streamlink
