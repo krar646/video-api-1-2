@@ -1,5 +1,6 @@
 import yt_dlp
 import random
+import os
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
@@ -8,6 +9,10 @@ USER_AGENTS = [
 
 def extract_video_info(url):
     selected_user_agent = random.choice(USER_AGENTS)
+    
+    # تحديد مسار ملف الكوكيز في المجلد الرئيسي (الخروج من مجلد extractors خطوة للوراء)
+    cookies_path = os.path.join(os.path.dirname(__file__), '..', 'cookies.txt')
+
     ydl_options = {
         "quiet": True,
         "no_warnings": True,
@@ -16,6 +21,7 @@ def extract_video_info(url):
         "nocheckcertificate": True,
         "skip_download": True,
         "ignoreerrors": True,
+        "cookiefile": cookies_path,  # <--- إضافة ملف الكوكيز هنا
         "http_headers": {
             "User-Agent": selected_user_agent,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
