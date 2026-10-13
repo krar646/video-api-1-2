@@ -1,6 +1,7 @@
 import yt_dlp
 import random
 import os
+import traceback
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
@@ -10,7 +11,7 @@ USER_AGENTS = [
 def extract_video_info(url):
     selected_user_agent = random.choice(USER_AGENTS)
     
-    # تحديد مسار ملف الكوكيز في المجلد الرئيسي (الخروج من مجلد extractors خطوة للوراء)
+    # تحديد مسار ملف الكوكيز في المجلد الرئيسي
     cookies_path = os.path.join(os.path.dirname(__file__), '..', 'cookies.txt')
 
     ydl_options = {
@@ -21,7 +22,7 @@ def extract_video_info(url):
         "nocheckcertificate": True,
         "skip_download": True,
         "ignoreerrors": True,
-        "cookiefile": cookies_path,  # <--- إضافة ملف الكوكيز هنا
+        "cookiefile": cookies_path,
         "http_headers": {
             "User-Agent": selected_user_agent,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -29,11 +30,19 @@ def extract_video_info(url):
         }
     }
 
-    with yt_dlp.YoutubeDL(ydl_options) as ydl:
-        info = ydl.extract_info(url, download=False)
+    try:
+        with yt_dlp.YoutubeDL(ydl_options) as ydl:
+            info = ydl.extract_info(url, download=False)
 
-    if not info:
-        raise Exception("Failed to extract video info.")
+        if not info:
+            raise Exception("Failed to extract video info: returned empty info.")
+            
+    except Exception as e:
+        # طباعة الخطأ التفصيلي الكامل في الـ Terminal لمعرفة السبب بدقة
+        print("--- DETAILED EXTRACTION ERROR ---")
+        traceback.print_exc()
+        print("---------------------------------")
+        raise Exception(f"Extraction failed: {str(e)}")
 
     video_url = None
     audio_url = None
