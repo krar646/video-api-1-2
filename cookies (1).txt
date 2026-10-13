@@ -1,0 +1,44 @@
+# Netscape HTTP Cookie File
+# https://curl.haxx.se/rfc/cookie_spec.html
+# This is a generated file! Do not edit.
+
+.google.com	TRUE	/	FALSE	1807408885	SEARCH_SAMESITE	CgQIg6IB
+.google.com	TRUE	/	TRUE	1807408885	AEC	Aaa9EJqnh9Gh3HAle-ONDdjP4RLs4ZqKM60AP4wC0GzckRHofpVjXVSiCA
+.translate-pa.googleapis.com	TRUE	/	FALSE	1807668086	NID	CvsBCAESrQEBOxGDSIIp-lya-ob1VXoaPcOWN3OboHR12DcvlY0hZSYtYX58L6D6bppgdSfmNjctNpxnmQjDl_nnukEkaEnh90g76bvZ5XyC4-2XtVu5mBq86DQuOuSu5Qd7ujLQOi0hLwRSbr21jRvm1TN7UNYeW1lIrsgGhD4SWdDKm6K4JY8Jfybk1kkyz4BmB2ke_q9kYItmGqWRC6rDNzeCsEAlJoiYR3t2ucDmCbY9sygBMkUB0qwHzw77wtEPzWU08ncrgYEFLDMrJFtTZvzfNRZQvI0HZQ03lcdhyUY3ioa64_qKD9ovolZGNPvoqra5lbRZ392yPg0
+.google.com	TRUE	/	FALSE	1825984896	SOCS	CAESHAgCEhJnd3NfMjAyNjEwMDktMF9SQzEaAmFyIAEaBgiA6bXWBg
+.grammarly.com	TRUE	/	FALSE	1826416921	gnar_containerId	fJDpoZzsunO6
+.grammarly.com	TRUE	/	TRUE	1823392932	grauth	AABRAzdYcUodyFUZus3qlnQgazfpneUJYRC2D6_5D_BSSJ-VTFLOXohz4dVrlB5Ohm1Jy550lx9q2p9O
+.grammarly.com	TRUE	/	TRUE	1823392932	csrf-token	AABRAzKXvrUpc41WP9wJBH6eLZEBXqYwOjFNkQ
+.one-tab.com	TRUE	/	TRUE	1826416982	tt	WMuskQeqTlSSon2SxGFYMg
+.one-tab.com	TRUE	/	TRUE	1826416982	lt	https://www.one-tab.com/ar/help
+.one-tab.com	TRUE	/	TRUE	1826416982	rt	-
+www.tampermonkey.net	FALSE	/	FALSE	1792461783	geo	FR_UNKNOWN
+www.tampermonkey.net	FALSE	/	FALSE	1792461783	_dtm	ps
+.one-tab.com	TRUE	/	FALSE	1826416987	_ga_Z7HB18WNKC	GS2.1.s1791856986$o1$g0$t1791856986$j60$l0$h0
+.one-tab.com	TRUE	/	FALSE	1826416987	_ga	GA1.1.137530345.1791856987
+chromewebstore.google.com	FALSE	/	TRUE	1794449016	OTZ	8825884_44_44__44_
+.roblox.com	TRUE	/	FALSE	1791860758	rbx-ip2	1
+.roblox.com	TRUE	/	FALSE	1826417157	RBXEventTrackerV2	CreateDate=10/12/2026 21:05:58&rbxid=&rbxuid=&browserid=1791857158271005
+.roblox.com	TRUE	/	FALSE	1826417157	GuestData	UserID=-993301534
+www.google.com	FALSE	/	FALSE	1791858069	DV	MwSaXgbROfgcUN_AlAKmBhd4VuQvExo
+.google.com	TRUE	/	TRUE	1826043582	__Secure-ENID	CsYCCAIS-AEBAQxeRXf_nUdi9fWSin_GJLoPYpLNpViwZfC4Mq1tzHVohiZNVbtFRdJ4-PK67kSGeAIzJ99yPYQadbgppu82xvTplyzsbyJcq2SQNXlQvK8rBTvLc0SuRDDOLRhj3yir0X6o82Yg2wnDhh_VvtDF1u1reYdc4GQZDpAe-sY-K44aoU_P1hu5l96pXg1nimMAsVjbfhni4VyMNLCYENqd0UcKN7FUUaAxr75cHaXwlHOoJnESBKCZRn5TJwKy8NzNHa4ffq-it-ORppCZL8ZgqCbn9TgNriCfPqb4Mih8Va0oKSqLcU9a4Nmtya8d-DsCyYziBo075CgCMkUBfWzEqmCfPfevrhxXLGi5NJ2VwZGxVLxdj_x2pRIT_U8XUJafeP5uTO7wvuMG8EwPXuh3LsH2Hqc49OrwVaDgGCfDEAc
+.google.com	TRUE	/	FALSE	1807408885	SEARCH_SAMESITE	CgQIg6IB
+.google.com	TRUE	/	TRUE	1807408885	AEC	Aaa9EJqnh9Gh3HAle-ONDdjP4RLs4ZqKM60AP4wC0GzckRHofpVjXVSiCA
+.translate-pa.googleapis.com	TRUE	/	FALSE	1807668086	NID	CvsBCAESrQEBOxGDSIIp-lya-ob1VXoaPcOWN3OboHR12DcvlY0hZSYtYX58L6D6bppgdSfmNjctNpxnmQjDl_nnukEkaEnh90g76bvZ5XyC4-2XtVu5mBq86DQuOuSu5Qd7ujLQOi0hLwRSbr21jRvm1TN7UNYeW1lIrsgGhD4SWdDKm6K4JY8Jfybk1kkyz4BmB2ke_q9kYItmGqWRC6rDNzeCsEAlJoiYR3t2ucDmCbY9sygBMkUB0qwHzw77wtEPzWU08ncrgYEFLDMrJFtTZvzfNRZQvI0HZQ03lcdhyUY3ioa64_qKD9ovolZGNPvoqra5lbRZ392yPg0
+.google.com	TRUE	/	FALSE	1825984896	SOCS	CAESHAgCEhJnd3NfMjAyNjEwMDktMF9SQzEaAmFyIAEaBgiA6bXWBg
+.grammarly.com	TRUE	/	FALSE	1826416921	gnar_containerId	fJDpoZzsunO6
+.grammarly.com	TRUE	/	TRUE	1823392932	grauth	AABRAzdYcUodyFUZus3qlnQgazfpneUJYRC2D6_5D_BSSJ-VTFLOXohz4dVrlB5Ohm1Jy550lx9q2p9O
+.grammarly.com	TRUE	/	TRUE	1823392932	csrf-token	AABRAzKXvrUpc41WP9wJBH6eLZEBXqYwOjFNkQ
+.one-tab.com	TRUE	/	TRUE	1826416982	tt	WMuskQeqTlSSon2SxGFYMg
+.one-tab.com	TRUE	/	TRUE	1826416982	lt	https://www.one-tab.com/ar/help
+.one-tab.com	TRUE	/	TRUE	1826416982	rt	-
+www.tampermonkey.net	FALSE	/	FALSE	1792461783	geo	FR_UNKNOWN
+www.tampermonkey.net	FALSE	/	FALSE	1792461783	_dtm	ps
+.one-tab.com	TRUE	/	FALSE	1826416987	_ga_Z7HB18WNKC	GS2.1.s1791856986$o1$g0$t1791856986$j60$l0$h0
+.one-tab.com	TRUE	/	FALSE	1826416987	_ga	GA1.1.137530345.1791856987
+chromewebstore.google.com	FALSE	/	TRUE	1794449016	OTZ	8825884_44_44__44_
+.roblox.com	TRUE	/	FALSE	1791860758	rbx-ip2	1
+.roblox.com	TRUE	/	FALSE	1826417157	RBXEventTrackerV2	CreateDate=10/12/2026 21:05:58&rbxid=&rbxuid=&browserid=1791857158271005
+.roblox.com	TRUE	/	FALSE	1826417157	GuestData	UserID=-993301534
+www.google.com	FALSE	/	FALSE	1791858069	DV	MwSaXgbROfgcUN_AlAKmBhd4VuQvExo
+.google.com	TRUE	/	TRUE	1826043582	__Secure-ENID	CsYCCAIS-AEBAQxeRXf_nUdi9fWSin_GJLoPYpLNpViwZfC4Mq1tzHVohiZNVbtFRdJ4-PK67kSGeAIzJ99yPYQadbgppu82xvTplyzsbyJcq2SQNXlQvK8rBTvLc0SuRDDOLRhj3yir0X6o82Yg2wnDhh_VvtDF1u1reYdc4GQZDpAe-sY-K44aoU_P1hu5l96pXg1nimMAsVjbfhni4VyMNLCYENqd0UcKN7FUUaAxr75cHaXwlHOoJnESBKCZRn5TJwKy8NzNHa4ffq-it-ORppCZL8ZgqCbn9TgNriCfPqb4Mih8Va0oKSqLcU9a4Nmtya8d-DsCyYziBo075CgCMkUBfWzEqmCfPfevrhxXLGi5NJ2VwZGxVLxdj_x2pRIT_U8XUJafeP5uTO7wvuMG8EwPXuh3LsH2Hqc49OrwVaDgGCfDEAc
