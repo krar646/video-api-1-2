@@ -37,9 +37,17 @@ def format_ytdlp_result(info):
             "has_audio": has_audio,
         })
 
+    # 🌟 استخراج الصورة المصغرة إجبارياً وبكل الطرق المتاحة من yt-dlp
+    thumbnail = info.get("thumbnail", "")
+    if not thumbnail or not thumbnail.startswith("http"):
+        thumbnails = info.get("thumbnails", [])
+        if thumbnails and isinstance(thumbnails, list):
+            # نأخذ آخر صورة في القائمة غالباً تكون الأعلى دقة
+            thumbnail = thumbnails[-1].get("url", "")
+
     return {
         "title": info.get("title") or "Video",
-        "thumbnail": info.get("thumbnail", ""),
+        "thumbnail": thumbnail,
         "combined_url": combined_url,
         "video_url": video_url or info.get("url"),
         "audio_url": audio_url,
@@ -107,6 +115,12 @@ def extract_video_info(url):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
 
+        # 🌟 محاولة التقاط صورة المعاينة (og:image) من ميتا السيرفر مباشرة إذا فشل yt-dlp
+        og_image = ""
+        meta_img = soup.find("meta", property="og:image")
+        if meta_img and meta_img.get("content"):
+            og_image = meta_img.get("content")
+
         urls = [
             tag.get("src")
             for tag in soup.find_all(["video", "source"])
@@ -124,7 +138,7 @@ def extract_video_info(url):
 
             return {
                 "title": title,
-                "thumbnail": "",
+                "thumbnail": og_image,
                 "combined_url": direct_url,
                 "video_url": direct_url,
                 "audio_url": None,
