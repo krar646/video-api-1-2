@@ -1,5 +1,29 @@
+# Python bytecode
 __pycache__/
 *.pyc
-.env
+*.pyo
+*.pyd
+
+# Virtual Environment
 venv/
+env/
+
+# Environment variables
+.env
+
+# Cookies (تم إزالتها نهائياً ولكن نضعها احتياطاً)
 cookies.txt
+*.txt.cookies
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Temporary files
+*.log
+tmp/
+temp/
