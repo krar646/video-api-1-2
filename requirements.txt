@@ -1,6 +1,6 @@
 Flask
 Flask-Cors
-yt-dlp
+yt-dlp[default,curl-cffi]
 beautifulsoup4
 requests
 gunicorn
