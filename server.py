@@ -22,22 +22,30 @@ def extract():
     if not data or "url" not in data:
         return jsonify({"status": "error", "message": "URL missing"}), 400
 
-    url = data["url"]
-    media_type = data.get("type", "video") # تحديد نوع الطلب (video, image, pdf) قادم من الفلاتر
+    url = data["url"].strip()
+    media_type = data.get("type", "video") # تحديد نوع الطلب (video, image, pdf)
 
-    # تنظيف روابط الـ intent إن وجدت
-    if url.startswith("intent://"):
+    # 🌟 تنظيف الروابط المعقدة (اللي جاية من تطبيقات تانية زي فيسبوك أو تيك توك)
+    if "intent://" in url or url.startswith("fb://") or url.startswith("instagram://") or url.startswith("snapchat://"):
         try:
             if "browser_fallback_url=" in url:
                 parts = url.split("browser_fallback_url=")
                 fallback = parts[1].split(";")[0]
                 url = urllib.parse.unquote(fallback)
+            elif "url=" in url:
+                parts = url.split("url=")
+                url = urllib.parse.unquote(parts[1].split("&")[0])
             else:
                 match = re.search(r'(https?://[^\s]+)', url)
                 if match:
                     url = match.group(1)
+            print(f"✅ تم تنظيف الرابط ليصبح: {url}")
         except Exception as e:
             print("Intent parsing error:", e)
+
+    # التحقق من أن الرابط صحيح
+    if not url.startswith("http"):
+        return jsonify({"status": "error", "message": "Invalid URL format"}), 400
 
     try:
         result = {}
