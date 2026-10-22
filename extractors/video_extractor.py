@@ -57,99 +57,27 @@ def format_ytdlp_result(info):
 
 def extract_video_info(url):
     agent = random.choice(USER_AGENTS)
-    cookies = os.path.join(os.path.dirname(__file__), "..", "cookies.txt")
-
-    for use_cookies in (True, False):
-        try:
-            options = {
-                "quiet": True,
-                "no_warnings": True,
-                "noplaylist": True,
-                "skip_download": True,
-                "geo_bypass": True,
-                "http_headers": {"User-Agent": agent},
-            }
-
-            if use_cookies and os.path.isfile(cookies):
-                options["cookiefile"] = cookies
-
-            with yt_dlp.YoutubeDL(options) as ydl:
-                info = ydl.extract_info(url, download=False)
-
-            if info and (info.get("url") or info.get("formats")):
-                return format_ytdlp_result(info)
-
-        except Exception as e:
-            print(f"yt-dlp failed: {e}")
 
     try:
-        import streamlink
+        # 🌟 الاعتماد الكلي على yt-dlp مع انتحال شخصية المتصفح (بدون كوكيز)
+        options = {
+            "quiet": True,
+            "no_warnings": True,
+            "noplaylist": True,
+            "skip_download": True,
+            "geo_bypass": True,
+            "http_headers": {"User-Agent": agent},
+            "impersonate": "chrome",  # 👈 السر هنا: تقليد متصفح كروم
+        }
 
-        streams = streamlink.streams(url)
-        stream = streams.get("best") or next(iter(streams.values()), None)
+        with yt_dlp.YoutubeDL(options) as ydl:
+            info = ydl.extract_info(url, download=False)
 
-        if stream:
-            stream_url = stream.url
-            return {
-                "title": "Video Stream",
-                "thumbnail": "",
-                "combined_url": stream_url,
-                "video_url": stream_url,
-                "audio_url": None,
-                "formats": [{
-                    "url": stream_url,
-                    "quality": "HD",
-                    "has_video": True,
-                    "has_audio": True,
-                }],
-            }
+        if info and (info.get("url") or info.get("formats")):
+            return format_ytdlp_result(info)
+
     except Exception as e:
-        print(f"Streamlink failed: {e}")
+        print(f"yt-dlp failed: {e}")
 
-    try:
-        response = requests.get(
-            url,
-            headers={"User-Agent": agent, "Referer": url},
-            timeout=10,
-        )
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-
-        # 🌟 محاولة التقاط صورة المعاينة (og:image) من ميتا السيرفر مباشرة إذا فشل yt-dlp
-        og_image = ""
-        meta_img = soup.find("meta", property="og:image")
-        if meta_img and meta_img.get("content"):
-            og_image = meta_img.get("content")
-
-        urls = [
-            tag.get("src")
-            for tag in soup.find_all(["video", "source"])
-            if tag.get("src") and tag.get("src").startswith("http")
-        ]
-
-        urls += re.findall(
-            r'https?://[^\s<>"]+?\.(?:mp4|m3u8|webm)',
-            response.text,
-        )
-
-        if urls:
-            direct_url = urls[0]
-            title = soup.title.get_text(strip=True) if soup.title else "Video"
-
-            return {
-                "title": title,
-                "thumbnail": og_image,
-                "combined_url": direct_url,
-                "video_url": direct_url,
-                "audio_url": None,
-                "formats": [{
-                    "url": direct_url,
-                    "quality": "HD",
-                    "has_video": True,
-                    "has_audio": True,
-                }],
-            }
-    except Exception as e:
-        print(f"Direct extraction failed: {e}")
-
-    raise Exception("No quality options available.")
+    # 🌟 في حال فشل yt-dlp، نرمي استثناء بدلاً من استخدام طرق بديلة غير موثوقة
+    raise Exception("فشل ")
