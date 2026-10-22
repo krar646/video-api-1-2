@@ -10,7 +10,6 @@ USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
 ]
 
-
 def format_ytdlp_result(info):
     formats = []
     video_url = audio_url = combined_url = None
@@ -37,12 +36,11 @@ def format_ytdlp_result(info):
             "has_audio": has_audio,
         })
 
-    # 🌟 استخراج الصورة المصغرة إجبارياً وبكل الطرق المتاحة من yt-dlp
+    # 🌟 استخراج الصورة المصغرة
     thumbnail = info.get("thumbnail", "")
     if not thumbnail or not thumbnail.startswith("http"):
         thumbnails = info.get("thumbnails", [])
         if thumbnails and isinstance(thumbnails, list):
-            # نأخذ آخر صورة في القائمة غالباً تكون الأعلى دقة
             thumbnail = thumbnails[-1].get("url", "")
 
     return {
@@ -59,7 +57,6 @@ def extract_video_info(url):
     agent = random.choice(USER_AGENTS)
 
     try:
-        # 🌟 الاعتماد الكلي على yt-dlp مع انتحال شخصية المتصفح (بدون كوكيز)
         options = {
             "quiet": True,
             "no_warnings": True,
@@ -67,7 +64,7 @@ def extract_video_info(url):
             "skip_download": True,
             "geo_bypass": True,
             "http_headers": {"User-Agent": agent},
-            "impersonate": "chrome",  # 👈 السر هنا: تقليد متصفح كروم
+            "impersonate": "chrome", # 🌟 انتحال شخصية المتصفح (بدون بروكسي)
         }
 
         with yt_dlp.YoutubeDL(options) as ydl:
@@ -79,5 +76,4 @@ def extract_video_info(url):
     except Exception as e:
         print(f"yt-dlp failed: {e}")
 
-    # 🌟 في حال فشل yt-dlp، نرمي استثناء بدلاً من استخدام طرق بديلة غير موثوقة
-    raise Exception("فشل ")
+    raise Exception("فشل .")
