@@ -1,5 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
+from urllib.parse import urlparse
 
 def extract_image_info(url):
     # 🌟 إضافة User-Agent متصفح حقيقي لتقليل فرص الحظر
@@ -10,24 +11,19 @@ def extract_image_info(url):
     }
 
     try:
-        # استخدام impersonate لمحاكاة متصفح كروم (يتطلب مكتبة curl_cffi)
-        try:
-            from curl_cffi import requests as curl_requests
-            response = curl_requests.get(url, headers=headers, impersonate="chrome", timeout=10)
-        except ImportError:
-            # لو المكتبة مش موجودة، نرجع للطريقة العادية
-            response = requests.get(url, headers=headers, timeout=10)
+        # جلب صفحة الويب
+        response = requests.get(url, headers=headers, timeout=10)
 
         if response.status_code != 200:
             raise Exception(f"Failed to fetch image page. Status: {response.status_code}")
 
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # 1. محاولة البحث عن OpenGraph tags (أفضل جودة)
+        # 1. البحث عن OpenGraph tags (أفضل جودة)
         og_image = soup.find("meta", property="og:image")
         image_url = og_image["content"] if og_image and "content" in og_image.attrs else None
 
-        # 2. البحث عن meta twitter:image (بديل قوي)
+        # 2. البحث عن meta twitter:image
         if not image_url:
             twitter_image = soup.find("meta", attrs={"name": "twitter:image"})
             if twitter_image and "content" in twitter_image.attrs:
@@ -43,7 +39,6 @@ def extract_image_info(url):
         if image_url and image_url.startswith("//"):
             image_url = "https:" + image_url
         elif image_url and image_url.startswith("/"):
-            from urllib.parse import urlparse
             parsed_url = urlparse(url)
             image_url = f"{parsed_url.scheme}://{parsed_url.netloc}{image_url}"
 
@@ -56,14 +51,16 @@ def extract_image_info(url):
         return {
             "title": title,
             "image_url": image_url,
-            "direct_download_url": image_url
+            "download_url": image_url, # 🌟 مهم جداً عشان التطبيق يلاقي الرابط
+            "thumbnail": image_url
         }
 
     except Exception as e:
         print(f"Image extraction error: {e}")
-        # 🌟 في حالة الفشل، نرجع بيانات أساسية بدل ما السيرفر ينهار
+        # في حالة الفشل، نرجع بيانات أساسية بدل ما السيرفر ينهار
         return {
             "title": "Image",
             "image_url": url,
-            "direct_download_url": url
+            "download_url": url,
+            "thumbnail": url
         }
