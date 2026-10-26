@@ -1,6 +1,0 @@
-
-yt-dlp[default,curl-cffi]==2026.7.4
-
-curl_cffi==0.15.0
-
-yt-dlp-ejs==0.8.0
