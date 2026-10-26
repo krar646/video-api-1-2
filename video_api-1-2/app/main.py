@@ -244,3 +244,75 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 API_DESCRIPTION = "REST API for video downloads (Excluding YouTube)."
+
+
+# 🌟 الجزء الناقص اللي كان لازم يضاف هنا (دالة create_app)
+def create_app() -> FastAPI:
+    """Create and configure the FastAPI application."""
+    app = FastAPI(
+        title="YT-DLP REST API",
+        description=API_DESCRIPTION,
+        version=__version__,
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
+        lifespan=lifespan,
+        contact={
+            "name": "API Support",
+            "url": "https://github.com/fvadicamo/yt-dlp-api",
+        },
+        license_info={
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT",
+        },
+    )
+
+    # Add CORS middleware
+    security_config = SecurityConfig()
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=security_config.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Add metrics middleware
+    app.add_middleware(MetricsMiddleware)
+
+    # Add rate limiting middleware
+    app.add_middleware(RateLimitMiddleware)
+
+    # Register global exception handlers
+    app.add_exception_handler(Exception, global_exception_handler)
+    app.add_exception_handler(APIError, global_exception_handler)
+
+    # Override dependency injection for routers
+    app.dependency_overrides[admin.get_cookie_service] = get_cookie_service
+    app.dependency_overrides[video.get_provider_manager] = get_provider_manager
+    app.dependency_overrides[transcript.get_provider_manager] = get_provider_manager
+    app.dependency_overrides[download.get_provider_manager] = get_provider_manager
+    app.dependency_overrides[download.get_job_service] = get_job_service
+    app.dependency_overrides[download.get_download_queue] = get_download_queue
+    app.dependency_overrides[download.get_download_worker] = get_download_worker
+    app.dependency_overrides[jobs.get_job_service] = get_job_service
+    app.dependency_overrides[jobs.get_download_queue] = get_download_queue
+
+    # Register routers
+    app.include_router(health.router)
+    app.include_router(video.router)
+    app.include_router(transcript.router)
+    app.include_router(download.router)
+    app.include_router(jobs.router)
+    app.include_router(admin.router)
+    app.include_router(metrics.router)
+
+    return app
+
+
+# Create the application instance
+app = create_app()
+
+if __name__ == "__main__":
+    import uvicorn  # type: ignore[import-not-found]
+    uvicorn.run(app, host="0.0.0.0", port=8000)  # nosec B104
