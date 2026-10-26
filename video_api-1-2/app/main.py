@@ -243,13 +243,4 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Application shutdown complete")
 
 
-API_DESCRIPTION = """
-## Overview
-
-REST API for video downloads and metadata extraction using yt-dlp.
-Supports video downloading from social media (Facebook, Instagram, TikTok, etc.)
-except YouTube.
-
-## Authentication
-
-All endpoints except health checks require an API key in the `X-API-Key` header.
+API_DESCRIPTION = "REST API for video downloads (Excluding YouTube)."
