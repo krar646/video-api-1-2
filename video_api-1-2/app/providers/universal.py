@@ -35,7 +35,14 @@ class UniversalProvider(VideoProvider):
     def __init__(self, config: Dict, cookie_service: Optional[Any] = None):
         self.config = config
         self.cookie_service = cookie_service
-        self.cookie_path: Optional[str] = config.get("cookie_path")
+        
+        # 🌟 التعديل هنا: تحديد مسار الكوكيز المباشر على Render
+        # ده المسار اللي Render بيحط فيه الملفات اللي إنت رفعتها على GitHub
+        self.cookie_path: Optional[str] = "/opt/render/project/src/cookies.txt"
+        
+        # لو الملف مش موجود في المسار المباشر، يدور على المسار اللي في الإعدادات
+        if not os.path.isfile(self.cookie_path):
+            self.cookie_path = config.get("cookie_path")
 
         # 🌟 إعدادات yt-dlp الأساسية
         self.base_opts = {
@@ -49,11 +56,12 @@ class UniversalProvider(VideoProvider):
             "socket_timeout": 15,     # مهلة الاتصال
         }
 
+        # 🌟 التحقق من وجود ملف الكوكيز وإضافته للإعدادات
         if self.cookie_path and os.path.isfile(self.cookie_path):
             self.base_opts["cookiefile"] = self.cookie_path
-            logger.info("Cookie file loaded for Universal Provider")
+            logger.info(f"✅ Cookie file loaded from: {self.cookie_path}")
         else:
-            logger.warning("No cookie file found. Extraction may fail for some sites.")
+            logger.warning(f"⚠️ No cookie file found at: {self.cookie_path}. Extraction may fail for some sites.")
 
     def validate_url(self, url: str) -> bool:
         """Block YouTube and validate against supported domains."""
