@@ -10,7 +10,6 @@ USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
 ]
 
-
 def format_ytdlp_result(info):
     formats = []
     video_url = audio_url = combined_url = None
@@ -30,19 +29,20 @@ def format_ytdlp_result(info):
         elif has_audio:
             audio_url = url
 
-        formats.append({
-            "url": url,
-            "quality": f'{f.get("height") or 720}p',
-            "has_video": has_video,
-            "has_audio": has_audio,
-        })
+        # نضيف الجودة بس لو فيها فيديو أو صوت حقيقي
+        if has_video or has_audio:
+            formats.append({
+                "url": url,
+                "quality": f'{f.get("height") or 720}p',
+                "has_video": has_video,
+                "has_audio": has_audio,
+            })
 
-    # 🌟 استخراج الصورة المصغرة إجبارياً وبكل الطرق المتاحة من yt-dlp
+    # استخراج الصورة المصغرة
     thumbnail = info.get("thumbnail", "")
     if not thumbnail or not thumbnail.startswith("http"):
         thumbnails = info.get("thumbnails", [])
         if thumbnails and isinstance(thumbnails, list):
-            # نأخذ آخر صورة في القائمة غالباً تكون الأعلى دقة
             thumbnail = thumbnails[-1].get("url", "")
 
     return {
@@ -57,6 +57,7 @@ def format_ytdlp_result(info):
 
 def extract_video_info(url):
     agent = random.choice(USER_AGENTS)
+    # 🌟 المسار ده لازم يكون صح (الملف في نفس مجلد server.py أو المجلد الأعلى منه)
     cookies = os.path.join(os.path.dirname(__file__), "..", "cookies.txt")
 
     for use_cookies in (True, False):
@@ -70,6 +71,7 @@ def extract_video_info(url):
                 "http_headers": {"User-Agent": agent},
             }
 
+            # 🌟 لو الملف موجود، استخدمه
             if use_cookies and os.path.isfile(cookies):
                 options["cookiefile"] = cookies
 
@@ -82,30 +84,7 @@ def extract_video_info(url):
         except Exception as e:
             print(f"yt-dlp failed: {e}")
 
-    try:
-        import streamlink
-
-        streams = streamlink.streams(url)
-        stream = streams.get("best") or next(iter(streams.values()), None)
-
-        if stream:
-            stream_url = stream.url
-            return {
-                "title": "Video Stream",
-                "thumbnail": "",
-                "combined_url": stream_url,
-                "video_url": stream_url,
-                "audio_url": None,
-                "formats": [{
-                    "url": stream_url,
-                    "quality": "HD",
-                    "has_video": True,
-                    "has_audio": True,
-                }],
-            }
-    except Exception as e:
-        print(f"Streamlink failed: {e}")
-
+    # 2. الخطة البديلة (البحث المباشر في صفحة الويب) - بدون Streamlink
     try:
         response = requests.get(
             url,
@@ -115,7 +94,6 @@ def extract_video_info(url):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # 🌟 محاولة التقاط صورة المعاينة (og:image) من ميتا السيرفر مباشرة إذا فشل yt-dlp
         og_image = ""
         meta_img = soup.find("meta", property="og:image")
         if meta_img and meta_img.get("content"):
@@ -152,4 +130,21 @@ def extract_video_info(url):
     except Exception as e:
         print(f"Direct extraction failed: {e}")
 
-    raise Exception("No quality options available.")
+    # 3. المحاولة الأخيرة (yt-dlp بدون فلاتر عشان نلاقي أي حاجة)
+    try:
+        options = {"quiet": True, "no_warnings": True, "noplaylist": True, "skip_download": True}
+        with yt_dlp.YoutubeDL(options) as ydl:
+            info = ydl.extract_info(url, download=False)
+            if info:
+                return {
+                    "title": info.get("title") or "Video",
+                    "thumbnail": info.get("thumbnail") or "",
+                    "combined_url": info.get("url"),
+                    "video_url": info.get("url"),
+                    "audio_url": None,
+                    "formats": [{"url": info.get("url"), "quality": "HD", "has_video": True, "has_audio": True}] if info.get("url") else [],
+                }
+    except Exception as e:
+        print(f"Final fallback failed: {e}")
+
+    raise Exception("لم نتمكن من استخراج الفيديو. الرابط قد يكون غير صحيح.")
