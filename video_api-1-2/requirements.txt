@@ -24,6 +24,6 @@ cachetools==7.1.4
 # 🌟 إضافات عشان السيرفر يشتغل مع universal.py
 # ==========================================
 # شيلنا رقم الإصدار القديم عشان ينزل أحدث نسخة دايماً
-yt-dlp[default,curl-cffi] --pre
+yt-dlp[default,curl-cffi]==2025.06.09
 curl_cffi==0.15.0
 yt-dlp-ejs
