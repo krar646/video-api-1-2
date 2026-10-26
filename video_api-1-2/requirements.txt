@@ -20,5 +20,9 @@ httpx==0.28.1
 # Caching
 cachetools==7.1.4
 
-# yt-dlp is pinned separately in requirements-ytdlp.txt (used by the
-# Docker build and refreshed weekly by the docker-publish workflow)
+# ==========================================
+# 🌟 إضافات عشان السيرفر يشتغل مع universal.py
+# ==========================================
+yt-dlp[default,curl-cffi]==2026.7.4
+curl_cffi==0.15.0
+yt-dlp-ejs==0.8.0
