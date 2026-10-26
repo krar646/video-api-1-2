@@ -1,9 +1,6 @@
-"""Universal provider implementation using cobalt.tools API for social media."""
+"""Universal provider implementation using yt-dlp for social media."""
 
 import os
-import re
-import json
-import requests
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -27,14 +24,25 @@ SUPPORTED_DOMAINS = [
 ]
 
 class UniversalProvider(VideoProvider):
+    """Universal provider for non-YouTube social media using yt-dlp."""
+
     def __init__(self, config: Dict, cookie_service: Optional[Any] = None):
         self.config = config
         self.cookie_service = cookie_service
-        
+
+        # 🌟 الطريقة القديمة: البحث المباشر عن ملف الكوكيز
+        # Render بيحط الملفات في المسار ده
         self.cookie_path: Optional[str] = "/opt/render/project/src/cookies.txt"
+
+        # لو مش موجود، يدور عليه في المكان اللي إحنا واقفين فيه
+        if not os.path.isfile(self.cookie_path):
+            self.cookie_path = os.path.join(os.path.dirname(__file__), "..", "..", "cookies.txt")
+
+        # لو لسه مش موجود، يدور في الإعدادات
         if not os.path.isfile(self.cookie_path):
             self.cookie_path = config.get("cookie_path")
 
+        # 🌟 إعدادات yt-dlp الأساسية
         self.base_opts = {
             "quiet": True,
             "no_warnings": True,
@@ -43,12 +51,15 @@ class UniversalProvider(VideoProvider):
             "geo_bypass": True,
             "impersonate": "chrome",
             "extractor_retries": 3,
-            "socket_timeout": 15,
+            "socket_timeout": 20,
         }
 
+        # 🌟 التحقق من وجود الكوكيز وإضافتها
         if self.cookie_path and os.path.isfile(self.cookie_path):
             self.base_opts["cookiefile"] = self.cookie_path
             logger.info(f"✅ Cookie file loaded from: {self.cookie_path}")
+        else:
+            logger.error(f"❌ Cookie file NOT FOUND at: {self.cookie_path}")
 
     def validate_url(self, url: str) -> bool:
         url_lower = url.lower()
@@ -62,7 +73,6 @@ class UniversalProvider(VideoProvider):
                 raise InvalidURLError("لا يمكن التنزيل من يوتيوب للحفاظ على سياسة جوجل.")
             raise InvalidURLError("الرابط غير مدعوم.")
 
-        # 1. المحاولة الأساسية بـ yt-dlp
         try:
             with yt_dlp.YoutubeDL(self.base_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
@@ -82,75 +92,7 @@ class UniversalProvider(VideoProvider):
                     result["formats"] = self._extract_formats(info)
                 return result
         except Exception as e:
-            logger.warning(f"yt-dlp failed: {e}. Trying cobalt.tools...")
-
-        # 2. المحاولة البديلة: API خارجي (cobalt.tools)
-        return await self._cobalt_extract(url, include_formats)
-
-    async def _cobalt_extract(self, url: str, include_formats: bool) -> Dict:
-        """الخطة ب: استخدام cobalt.tools API لجلب الفيديو"""
-        try:
-            # الـ API بتاع cobalt.tools
-            api_url = "https://api.cobalt.tools/api/json"
-            headers = {
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            }
-            payload = {"url": url}
-            
-            response = requests.post(api_url, json=payload, headers=headers, timeout=20)
-            response.raise_for_status()
-            data = response.json()
-
-            if data.get("status") == "error":
-                raise VideoUnavailableError(data.get("error", "فشل في جلب الفيديو"))
-
-            # cobalt بيرجع رابط مباشر في "url"
-            video_url = data.get("url")
-            if not video_url:
-                raise VideoUnavailableError("لم يتم العثور على رابط فيديو من cobalt.")
-
-            # cobalt مش بيرجع عنوان أو صورة، فهنجيبهم من صفحة الويب مباشرة
-            title = "فيديو"
-            thumbnail = ""
-            try:
-                page_response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
-                html = page_response.text
-                title_match = re.search(r'<meta property="og:title" content="(.*?)"', html)
-                if title_match:
-                    title = title_match.group(1)
-                thumb_match = re.search(r'<meta property="og:image" content="(.*?)"', html)
-                if thumb_match:
-                    thumbnail = thumb_match.group(1).replace('&amp;', '&')
-            except Exception:
-                pass
-
-            formats = [{
-                "format_id": "cobalt_mp4",
-                "ext": "mp4",
-                "resolution": "HD",
-                "audio_bitrate": None,
-                "video_codec": None,
-                "audio_codec": None,
-                "filesize": None,
-                "format_type": "video+audio",
-                "url": video_url,
-            }]
-
-            return {
-                "video_id": "cobalt",
-                "title": title,
-                "duration": 0,
-                "author": "",
-                "upload_date": "",
-                "view_count": 0,
-                "thumbnail_url": thumbnail,
-                "description": "",
-                "formats": formats if include_formats else [],
-            }
-
-        except Exception as e:
-            logger.error(f"Cobalt extraction failed: {e}")
+            logger.error(f"yt-dlp failed: {e}")
             raise ProviderError(f"فشل في استخراج الفيديو: {e}")
 
     def _extract_formats(self, info: Dict) -> List[Dict]:
