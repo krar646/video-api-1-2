@@ -1,4 +1,4 @@
-"""Universal provider implementation using yt-dlp for social media."""
+"""Universal provider implementation using cobalt.tools API for social media."""
 
 import os
 import re
@@ -31,12 +31,10 @@ class UniversalProvider(VideoProvider):
         self.config = config
         self.cookie_service = cookie_service
         
-        # مسار الكوكيز المباشر
         self.cookie_path: Optional[str] = "/opt/render/project/src/cookies.txt"
         if not os.path.isfile(self.cookie_path):
             self.cookie_path = config.get("cookie_path")
 
-        # إعدادات yt-dlp
         self.base_opts = {
             "quiet": True,
             "no_warnings": True,
@@ -51,8 +49,6 @@ class UniversalProvider(VideoProvider):
         if self.cookie_path and os.path.isfile(self.cookie_path):
             self.base_opts["cookiefile"] = self.cookie_path
             logger.info(f"✅ Cookie file loaded from: {self.cookie_path}")
-        else:
-            logger.warning(f"⚠️ No cookie file found at: {self.cookie_path}")
 
     def validate_url(self, url: str) -> bool:
         url_lower = url.lower()
@@ -66,7 +62,7 @@ class UniversalProvider(VideoProvider):
                 raise InvalidURLError("لا يمكن التنزيل من يوتيوب للحفاظ على سياسة جوجل.")
             raise InvalidURLError("الرابط غير مدعوم.")
 
-        # المحاولة الأساسية بـ yt-dlp
+        # 1. المحاولة الأساسية بـ yt-dlp
         try:
             with yt_dlp.YoutubeDL(self.base_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
@@ -86,62 +82,63 @@ class UniversalProvider(VideoProvider):
                     result["formats"] = self._extract_formats(info)
                 return result
         except Exception as e:
-            logger.warning(f"yt-dlp failed: {e}. Trying manual extraction...")
+            logger.warning(f"yt-dlp failed: {e}. Trying cobalt.tools...")
 
-        # الخطة البديلة (لو yt-dlp فشل)
-        return await self._manual_extract(url, include_formats)
+        # 2. المحاولة البديلة: API خارجي (cobalt.tools)
+        return await self._cobalt_extract(url, include_formats)
 
-    async def _manual_extract(self, url: str, include_formats: bool) -> Dict:
-        """الخطة ب: استخراج الفيديو من صفحة الويب مباشرة"""
+    async def _cobalt_extract(self, url: str, include_formats: bool) -> Dict:
+        """الخطة ب: استخدام cobalt.tools API لجلب الفيديو"""
         try:
+            # الـ API بتاع cobalt.tools
+            api_url = "https://api.cobalt.tools/api/json"
             headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Content-Type": "application/json",
+                "Accept": "application/json"
             }
-            response = requests.get(url, headers=headers, timeout=15)
-            html = response.text
+            payload = {"url": url}
+            
+            response = requests.post(api_url, json=payload, headers=headers, timeout=20)
+            response.raise_for_status()
+            data = response.json()
 
-            # استخراج العنوان والصورة
+            if data.get("status") == "error":
+                raise VideoUnavailableError(data.get("error", "فشل في جلب الفيديو"))
+
+            # cobalt بيرجع رابط مباشر في "url"
+            video_url = data.get("url")
+            if not video_url:
+                raise VideoUnavailableError("لم يتم العثور على رابط فيديو من cobalt.")
+
+            # cobalt مش بيرجع عنوان أو صورة، فهنجيبهم من صفحة الويب مباشرة
             title = "فيديو"
             thumbnail = ""
-            title_match = re.search(r'<meta property="og:title" content="(.*?)"', html)
-            if title_match:
-                title = title_match.group(1)
+            try:
+                page_response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+                html = page_response.text
+                title_match = re.search(r'<meta property="og:title" content="(.*?)"', html)
+                if title_match:
+                    title = title_match.group(1)
+                thumb_match = re.search(r'<meta property="og:image" content="(.*?)"', html)
+                if thumb_match:
+                    thumbnail = thumb_match.group(1).replace('&amp;', '&')
+            except Exception:
+                pass
 
-            thumb_match = re.search(r'<meta property="og:image" content="(.*?)"', html)
-            if thumb_match:
-                thumbnail = thumb_match.group(1).replace('&amp;', '&')
-
-            # البحث عن روابط الفيديو
-            video_urls = re.findall(r'"(https:\\/\\/[^"]+?\.mp4[^"]*)"', html)
-            video_urls += re.findall(r'"(https:[^"]+?\.mp4[^"]*)"', html)
-
-            if not video_urls:
-                raise VideoUnavailableError("لم يتم العثور على روابط فيديو في الصفحة.")
-
-            # تنظيف الروابط
-            cleaned_urls = []
-            for v_url in video_urls:
-                v_url = v_url.replace('\\/', '/').replace('\\u0025', '%')
-                if v_url not in cleaned_urls:
-                    cleaned_urls.append(v_url)
-
-            formats = []
-            for i, v_url in enumerate(cleaned_urls):
-                formats.append({
-                    "format_id": f"manual_{i}",
-                    "ext": "mp4",
-                    "resolution": "HD",
-                    "audio_bitrate": None,
-                    "video_codec": None,
-                    "audio_codec": None,
-                    "filesize": None,
-                    "format_type": "video+audio",
-                    "url": v_url,
-                })
+            formats = [{
+                "format_id": "cobalt_mp4",
+                "ext": "mp4",
+                "resolution": "HD",
+                "audio_bitrate": None,
+                "video_codec": None,
+                "audio_codec": None,
+                "filesize": None,
+                "format_type": "video+audio",
+                "url": video_url,
+            }]
 
             return {
-                "video_id": "manual",
+                "video_id": "cobalt",
                 "title": title,
                 "duration": 0,
                 "author": "",
@@ -153,7 +150,7 @@ class UniversalProvider(VideoProvider):
             }
 
         except Exception as e:
-            logger.error(f"Manual extraction failed: {e}")
+            logger.error(f"Cobalt extraction failed: {e}")
             raise ProviderError(f"فشل في استخراج الفيديو: {e}")
 
     def _extract_formats(self, info: Dict) -> List[Dict]:
