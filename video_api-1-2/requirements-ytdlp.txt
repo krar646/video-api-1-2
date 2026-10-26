@@ -1,5 +1,5 @@
-
-yt-dlp[default,curl-cffi]==2026.7.4
+# شيلنا رقم الإصدار من yt-dlp عشان ينزل آخر تحديث كل مرة
+yt-dlp[default,curl-cffi] --pre
 
 curl_cffi==0.15.0
 
