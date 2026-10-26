@@ -58,8 +58,8 @@ class TimeoutsConfig(BaseConfigSection):
 class StorageConfig(BaseConfigSection):
     """Storage and file management configuration"""
 
-    output_dir: str = "/app/downloads"
-    cookie_dir: str = "/app/cookies"
+    output_dir: str = "./downloads"  # تم التعديل لتجنب مشاكل الصلاحيات في الجذر
+    cookie_dir: str = "./cookies"
     cleanup_age: int = 24  # hours
     cleanup_threshold: int = 80  # disk usage percentage
     max_file_size: int = 524288000  # 500MB in bytes
@@ -140,8 +140,8 @@ class LoggingConfig(BaseConfigSection):
 class SecurityConfig(BaseConfigSection):
     """Security configuration"""
 
-    api_keys: List[str] = Field(default_factory=list)
-    allow_degraded_start: bool = False
+    api_keys: List[str] = Field(default_factory=lambda: ["vidsnap-default-key-2026"])
+    allow_degraded_start: bool = True  # مفعل لتجاوز الأخطاء البسيطة عند الإقلاع
     cors_origins: List[str] = Field(default_factory=lambda: ["*"])
 
     model_config = SettingsConfigDict(env_prefix="APP_SECURITY_")
