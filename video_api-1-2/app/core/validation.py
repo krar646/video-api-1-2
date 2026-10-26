@@ -132,12 +132,12 @@ class URLValidator:
         else:
             domain = netloc.split(":")[0].split("@")[-1]
 
-        # Check if domain is YouTube (Blocked)
+        # Check if domain is YouTube (Blocked) with Google policy compliance message
         if domain in self.BLOCKED_DOMAINS or any(yt in domain for yt in ["youtube.com", "youtu.be"]):
             logger.debug("YouTube URL blocked by validator", url=url, domain=domain)
             return ValidationResult(
                 is_valid=False,
-                error_message="التحميل من منصة يوتيوب غير مسموح به.",
+                error_message="لا يمكن التنزيل من يوتيوب للحفاظ على سياسة جوجل",
             )
 
         logger.debug("URL validated successfully (non-YouTube)", url=url, domain=domain)
@@ -159,13 +159,9 @@ class URLValidator:
 class FormatValidator:
     """Validates yt-dlp format IDs and specifications."""
 
-    # Valid format ID pattern: alphanumeric, underscore, hyphen, plus (for merged formats)
     FORMAT_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_+-]+$")
-
-    # Maximum length for format ID
     MAX_FORMAT_ID_LENGTH = 50
 
-    # Common special format selectors
     SPECIAL_SELECTORS: FrozenSet[str] = frozenset(
         {
             "best",
@@ -181,15 +177,7 @@ class FormatValidator:
     )
 
     def validate_format_id(self, format_id: str) -> ValidationResult:
-        """
-        Validate a format ID.
-
-        Args:
-            format_id: Format ID to validate
-
-        Returns:
-            ValidationResult with validation status
-        """
+        """Validate a format ID."""
         if not format_id or not isinstance(format_id, str):
             return ValidationResult(is_valid=False, error_message="Format ID is required")
 
@@ -203,11 +191,9 @@ class FormatValidator:
                 error_message=f"Format ID exceeds maximum length of {self.MAX_FORMAT_ID_LENGTH}",
             )
 
-        # Allow special selectors
         if format_id.lower() in self.SPECIAL_SELECTORS:
             return ValidationResult(is_valid=True, sanitized_value=format_id)
 
-        # Check pattern for standard format IDs
         if not self.FORMAT_ID_PATTERN.match(format_id):
             return ValidationResult(
                 is_valid=False,
@@ -225,15 +211,6 @@ class ParameterValidator:
     """Validates API request parameters."""
 
     def validate_audio_format(self, audio_format: str) -> ValidationResult:
-        """
-        Validate audio format parameter.
-
-        Args:
-            audio_format: Audio format string
-
-        Returns:
-            ValidationResult with validation status
-        """
         if not audio_format:
             return ValidationResult(is_valid=False, error_message="Audio format is required")
 
@@ -248,15 +225,6 @@ class ParameterValidator:
             )
 
     def validate_audio_quality(self, quality: str) -> ValidationResult:
-        """
-        Validate audio quality parameter.
-
-        Args:
-            quality: Audio quality string (bitrate)
-
-        Returns:
-            ValidationResult with validation status
-        """
         if not quality:
             return ValidationResult(is_valid=False, error_message="Audio quality is required")
 
@@ -271,20 +239,10 @@ class ParameterValidator:
             )
 
     def validate_language_code(self, lang_code: str) -> ValidationResult:
-        """
-        Validate language code for subtitles.
-
-        Args:
-            lang_code: ISO 639-1 or 639-2 language code
-
-        Returns:
-            ValidationResult with validation status
-        """
         if not lang_code or not isinstance(lang_code, str):
             return ValidationResult(is_valid=False, error_message="Language code is required")
 
         lang_code = lang_code.strip().lower()
-
         pattern = re.compile(r"^[a-z]{2,3}(-[a-zA-Z]{2,4})?$")
 
         if not pattern.match(lang_code):
@@ -298,17 +256,6 @@ class ParameterValidator:
     def validate_positive_integer(
         self, value: int, name: str, max_value: Optional[int] = None
     ) -> ValidationResult:
-        """
-        Validate a positive integer parameter.
-
-        Args:
-            value: Integer value to validate
-            name: Parameter name for error messages
-            max_value: Optional maximum allowed value
-
-        Returns:
-            ValidationResult with validation status
-        """
         if not isinstance(value, int) or isinstance(value, bool):
             return ValidationResult(is_valid=False, error_message=f"{name} must be an integer")
 
@@ -333,13 +280,5 @@ parameter_validator = ParameterValidator()
 
 
 def validate_format_id(format_id: str) -> bool:
-    """
-    Convenience function to validate format IDs.
-
-    Args:
-        format_id: Format ID to validate
-
-    Returns:
-        True if format ID is valid
-    """
+    """Convenience function to validate format IDs."""
     return format_validator.is_valid_format_id(format_id)
