@@ -22,28 +22,18 @@ def format_ytdlp_result(info):
         has_video = f.get("vcodec") not in (None, "none")
         has_audio = f.get("acodec") not in (None, "none")
 
-        # 🌟 تحديد نوع الملف
         if has_video and has_audio:
             combined_url = url
-            file_type = "video"
         elif has_video:
             video_url = url
-            file_type = "video"
         elif has_audio:
             audio_url = url
-            file_type = "audio"
-        else:
-            continue # نتجاهل أي رابط لا يحتوي على فيديو أو صوت
 
-        # 🌟 إضافة الحجم والامتداد والنوع
         formats.append({
             "url": url,
-            "quality": f'{f.get("height")}p' if f.get("height") else "audio",
+            "quality": f'{f.get("height") or 720}p',
             "has_video": has_video,
             "has_audio": has_audio,
-            "type": file_type, # 👈 هذا ما سيقرأه التطبيق
-            "ext": f.get("ext", "mp4"),
-            "filesize": f.get("filesize") or f.get("filesize_approx")
         })
 
     thumbnail = info.get("thumbnail", "")
@@ -106,9 +96,6 @@ def extract_video_info(url):
                     "quality": "HD",
                     "has_video": True,
                     "has_audio": True,
-                    "type": "video", # 🌟 إضافة النوع
-                    "ext": "mp4",
-                    "filesize": None
                 }],
             }
     except Exception as e:
@@ -154,9 +141,6 @@ def extract_video_info(url):
                     "quality": "HD",
                     "has_video": True,
                     "has_audio": True,
-                    "type": "video", # 🌟 إضافة النوع
-                    "ext": "mp4",
-                    "filesize": None
                 }],
             }
     except Exception as e:
