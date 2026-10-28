@@ -13,28 +13,47 @@ USER_AGENTS = [
 def format_ytdlp_result(info):
     formats = []
     video_url = audio_url = combined_url = None
+    
+    seen_qualities = set()
+    audio_added = False
 
     for f in info.get("formats", []):
         url = f.get("url")
         if not url:
             continue
 
+        height = f.get("height")
         has_video = f.get("vcodec") not in (None, "none")
         has_audio = f.get("acodec") not in (None, "none")
 
-        if has_video and has_audio:
-            combined_url = url
-        elif has_video:
-            video_url = url
-        elif has_audio:
-            audio_url = url
-
-        formats.append({
-            "url": url,
-            "quality": f'{f.get("height") or 720}p',
-            "has_video": has_video,
-            "has_audio": has_audio,
-        })
+        # 1. تصفية الفيديو ليقتصر بدقة على 720p و 480p فقط (من غير صوت أو مع صوت)
+        if has_video:
+            if height in [720, 480]:
+                quality_str = f"{height}p"
+                if quality_str not in seen_qualities:
+                    seen_qualities.add(quality_str)
+                    formats.append({
+                        "url": url,
+                        "quality": quality_str,
+                        "has_video": True,
+                        "has_audio": has_audio,
+                    })
+                    if has_audio:
+                        combined_url = url
+                    else:
+                        video_url = url
+        
+        # 2. جعل الصوت يظهر بصيغة واحدة فقط وعدم تكراره
+        elif has_audio and not has_video:
+            if not audio_added:
+                audio_added = True
+                audio_url = url
+                formats.append({
+                    "url": url,
+                    "quality": "Standard Audio",
+                    "has_video": False,
+                    "has_audio": True,
+                })
 
     thumbnail = info.get("thumbnail", "")
     if not thumbnail or not thumbnail.startswith("http"):
@@ -46,7 +65,7 @@ def format_ytdlp_result(info):
         "title": info.get("title") or "Video",
         "thumbnail": thumbnail,
         "combined_url": combined_url,
-        "video_url": video_url or info.get("url"),
+        "video_url": video_url or combined_url,
         "audio_url": audio_url,
         "formats": formats,
     }
@@ -93,7 +112,7 @@ def extract_video_info(url):
                 "audio_url": None,
                 "formats": [{
                     "url": stream_url,
-                    "quality": "HD",
+                    "quality": "720p",
                     "has_video": True,
                     "has_audio": True,
                 }],
@@ -138,7 +157,7 @@ def extract_video_info(url):
                 "audio_url": None,
                 "formats": [{
                     "url": direct_url,
-                    "quality": "HD",
+                    "quality": "720p",
                     "has_video": True,
                     "has_audio": True,
                 }],
