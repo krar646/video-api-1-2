@@ -12,48 +12,70 @@ USER_AGENTS = [
 
 def format_ytdlp_result(info):
     formats = []
-    video_url = audio_url = combined_url = None
-    
+    combined_url = None
+    video_url = None
+    audio_url = None
+
     seen_qualities = set()
     audio_added = False
 
+    # فحص جميع الformats المستخرجة من yt-dlp
     for f in info.get("formats", []):
         url = f.get("url")
         if not url:
             continue
 
         height = f.get("height")
-        has_video = f.get("vcodec") not in (None, "none")
-        has_audio = f.get("acodec") not in (None, "none")
-
-        # 1. تصفية الفيديو ليقتصر بدقة على 720p و 480p فقط (من غير صوت أو مع صوت)
-        if has_video:
-            if height in [720, 480]:
-                quality_str = f"{height}p"
-                if quality_str not in seen_qualities:
-                    seen_qualities.add(quality_str)
-                    formats.append({
-                        "url": url,
-                        "quality": quality_str,
-                        "has_video": True,
-                        "has_audio": has_audio,
-                    })
-                    if has_audio:
-                        combined_url = url
-                    else:
-                        video_url = url
+        vcodec = f.get("vcodec")
+        acodec = f.get("acodec")
         
-        # 2. جعل الصوت يظهر بصيغة واحدة فقط وعدم تكراره
-        elif has_audio and not has_video:
+        has_video = vcodec not in (None, "none")
+        has_audio = acodec not in (None, "none")
+
+        # 1. إذا كان الفيديو يحتوي على صورة/فيديو وبدقة معروفة (مثل 720 أو 480)
+        if has_video and height:
+            if height >= 720:
+                q_str = "720p"
+            elif height >= 480:
+                q_str = "480p"
+            else:
+                q_str = f"{height}p"
+
+            if q_str not in seen_qualities and q_str in ["720p", "480p"]:
+                seen_qualities.add(q_str)
+                formats.append({
+                    "url": url,
+                    "quality": q_str,
+                    "has_video": True,
+                    "has_audio": has_audio,
+                })
+                if has_audio and not combined_url:
+                    combined_url = url
+                elif not video_url:
+                    video_url = url
+
+        # 2. استخراج الصوت النقي المنفصل لخيار Fast Audio
+        if has_audio and not has_video:
             if not audio_added:
                 audio_added = True
                 audio_url = url
                 formats.append({
                     "url": url,
-                    "quality": "Standard Audio",
+                    "quality": "audio_fast",
                     "has_video": False,
                     "has_audio": True,
                 })
+
+    # إذا لم يتم رصد جودات محددة، نأخذ أفضل جودة متاحة كحل احتياطي
+    if not formats and info.get("url"):
+        fallback_url = info.get("url")
+        formats.append({
+            "url": fallback_url,
+            "quality": "720p",
+            "has_video": True,
+            "has_audio": True,
+        })
+        combined_url = fallback_url
 
     thumbnail = info.get("thumbnail", "")
     if not thumbnail or not thumbnail.startswith("http"):
@@ -64,8 +86,8 @@ def format_ytdlp_result(info):
     return {
         "title": info.get("title") or "Video",
         "thumbnail": thumbnail,
-        "combined_url": combined_url,
-        "video_url": video_url or combined_url,
+        "combined_url": combined_url or (formats[0]["url"] if formats else ""),
+        "video_url": video_url or combined_url or (formats[0]["url"] if formats else ""),
         "audio_url": audio_url,
         "formats": formats,
     }
@@ -97,6 +119,7 @@ def extract_video_info(url):
         except Exception as e:
             print(f"yt-dlp failed: {e}")
 
+    # حل بديل عبر Streamlink
     try:
         import streamlink
         streams = streamlink.streams(url)
@@ -119,50 +142,5 @@ def extract_video_info(url):
             }
     except Exception as e:
         print(f"Streamlink failed: {e}")
-
-    try:
-        response = requests.get(
-            url,
-            headers={"User-Agent": agent, "Referer": url},
-            timeout=10,
-        )
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-
-        og_image = ""
-        meta_img = soup.find("meta", property="og:image")
-        if meta_img and meta_img.get("content"):
-            og_image = meta_img.get("content")
-
-        urls = [
-            tag.get("src")
-            for tag in soup.find_all(["video", "source"])
-            if tag.get("src") and tag.get("src").startswith("http")
-        ]
-
-        urls += re.findall(
-            r'https?://[^\s<>"]+?\.(?:mp4|m3u8|webm)',
-            response.text,
-        )
-
-        if urls:
-            direct_url = urls[0]
-            title = soup.title.get_text(strip=True) if soup.title else "Video"
-
-            return {
-                "title": title,
-                "thumbnail": og_image,
-                "combined_url": direct_url,
-                "video_url": direct_url,
-                "audio_url": None,
-                "formats": [{
-                    "url": direct_url,
-                    "quality": "720p",
-                    "has_video": True,
-                    "has_audio": True,
-                }],
-            }
-    except Exception as e:
-        print(f"Direct extraction failed: {e}")
 
     raise Exception("No quality options available.")
