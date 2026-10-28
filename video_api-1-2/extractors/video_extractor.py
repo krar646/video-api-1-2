@@ -19,7 +19,11 @@ def format_ytdlp_result(info):
     seen_qualities = set()
     audio_added = False
 
-    for f in info.get("formats", []):
+    # ترتيب الـ formats بحيث نبحث عن أعلى جودة متوفرة أولاً (مثل 720p ثم 480p)
+    raw_formats = info.get("formats", [])
+    
+    # محاولة إعطاء الأولوية للـ formats التي تحتوي على فيديو وصوت معاً أو جودات واضحة
+    for f in raw_formats:
         url = f.get("url")
         if not url:
             continue
@@ -32,6 +36,7 @@ def format_ytdlp_result(info):
         has_audio = acodec not in (None, "none")
 
         if has_video and height:
+            # تحديد الدقة بدقة وبدون فقدان جودة
             if height >= 720:
                 q_str = "720p"
             elif height >= 480:
@@ -39,6 +44,7 @@ def format_ytdlp_result(info):
             else:
                 q_str = f"{height}p"
 
+            # نركز على 720p و 480p ونمنع التكرار مع إعطاء الأولوية لـ 720p الحقيقية
             if q_str not in seen_qualities and q_str in ["720p", "480p"]:
                 seen_qualities.add(q_str)
                 formats.append({
@@ -47,11 +53,17 @@ def format_ytdlp_result(info):
                     "has_video": True,
                     "has_audio": has_audio,
                 })
-                if has_audio and not combined_url:
+                
+                # إذا وجدنا رابط يدمج الفيديو والصوت بدقة 720p نجعله الأساس فوراً
+                if q_str == "720p" and has_audio and not combined_url:
                     combined_url = url
-                elif not video_url:
+                elif not combined_url and has_audio:
+                    combined_url = url
+
+                if has_video and not video_url:
                     video_url = url
 
+        # استخراج الصوت النقي المنفصل لخيار Fast Audio
         if has_audio and not has_video:
             if not audio_added:
                 audio_added = True
@@ -63,6 +75,16 @@ def format_ytdlp_result(info):
                     "has_audio": True,
                 })
 
+    # إذا لم نجد روابط مدمجة واضحة، نبحث عن أفضل رابط فيديو منفصل أو متاح
+    if not combined_url and formats:
+        for fmt in formats:
+            if fmt["quality"] == "720p" and fmt["url"]:
+                combined_url = fmt["url"]
+                break
+        if not combined_url:
+            combined_url = formats[0]["url"]
+
+    # إذا لم يتم رصد جودات محددة، نأخذ رابط الفيديو الأساسي كحل احتياطي
     if not formats and info.get("url"):
         fallback_url = info.get("url")
         formats.append({
@@ -90,7 +112,6 @@ def format_ytdlp_result(info):
     video_title = info.get("title") or "Video"
     
     if uploader_name:
-        # جعل اسم صاحب الحساب هو العنوان الأساسي أو يدمج معه ليكون مميزاً
         final_title = f"{uploader_name}"
     else:
         final_title = video_title
