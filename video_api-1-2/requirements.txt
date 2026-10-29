@@ -1,6 +1,6 @@
 Flask
 Flask-Cors
-yt-dlp
+yt-dlp --uograde
 beautifulsoup4
 requests
 gunicorn
