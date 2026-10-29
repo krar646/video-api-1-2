@@ -10,7 +10,7 @@ USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
 ]
 
-def format_ytdlp_result(info):
+def format_ytdlp_result(info, original_url=""):
     formats = []
     combined_url = None
     video_url = None
@@ -21,7 +21,7 @@ def format_ytdlp_result(info):
 
     # ترتيب الـ formats بحيث نبحث عن أعلى جودة متوفرة أولاً (مثل 720p ثم 480p)
     raw_formats = info.get("formats", [])
-    
+
     # محاولة إعطاء الأولوية للـ formats التي تحتوي على فيديو وصوت معاً أو جودات واضحة
     for f in raw_formats:
         url = f.get("url")
@@ -31,7 +31,7 @@ def format_ytdlp_result(info):
         height = f.get("height")
         vcodec = f.get("vcodec")
         acodec = f.get("acodec")
-        
+
         has_video = vcodec not in (None, "none")
         has_audio = acodec not in (None, "none")
 
@@ -53,7 +53,7 @@ def format_ytdlp_result(info):
                     "has_video": True,
                     "has_audio": has_audio,
                 })
-                
+
                 # إذا وجدنا رابط يدمج الفيديو والصوت بدقة 720p نجعله الأساس فوراً
                 if q_str == "720p" and has_audio and not combined_url:
                     combined_url = url
@@ -101,25 +101,28 @@ def format_ytdlp_result(info):
         if thumbnails and isinstance(thumbnails, list):
             thumbnail = thumbnails[-1].get("url", "")
 
-    # 🌟 استخراج اسم صاحب الحساب أو القناة بدقة كاسم أساسي للفيديو
-    uploader_name = (
-        info.get("uploader") or 
-        info.get("channel") or 
-        info.get("creator") or 
-        info.get("uploader_id")
-    )
-    
-    video_title = info.get("title") or "Video"
-    
-    if uploader_name:
-        final_title = f"{uploader_name}"
+    # 🌟 تخصيص الاسم: إذا كان الرابط لـ فيسبوك، نجعله أرقاماً عشوائية فريدة تماماً كما طلبْت
+    if "facebook.com" in original_url or "fb.watch" in original_url:
+        final_title = f"VidSnap_{random.randint(100000000, 999999999)}"
     else:
-        final_title = video_title
+        # لباقي المنصات، نأخذ اسم الحساب أو القناة أو عنوان الفيديو الحقيقي
+        uploader_name = (
+            info.get("uploader") or
+            info.get("channel") or
+            info.get("creator") or
+            info.get("uploader_id")
+        )
+        video_title = info.get("title") or "Video"
 
-    # تنظيف العنوان من الرموز الممنوعة في أسماء الملفات
-    final_title = re.sub(r'[\\/*?:"<>|]', "", final_title).strip()
-    if not final_title:
-        final_title = "Video"
+        if uploader_name:
+            final_title = f"{uploader_name}"
+        else:
+            final_title = video_title
+
+        # تنظيف العنوان من الرموز الممنوعة في أسماء الملفات
+        final_title = re.sub(r'[\\/*?:"<>|]', "", final_title).strip()
+        if not final_title:
+            final_title = "Video"
 
     return {
         "title": final_title,
@@ -152,7 +155,7 @@ def extract_video_info(url):
                 info = ydl.extract_info(url, download=False)
 
             if info and (info.get("url") or info.get("formats")):
-                return format_ytdlp_result(info)
+                return format_ytdlp_result(info, original_url=url)
 
         except Exception as e:
             print(f"yt-dlp failed: {e}")
@@ -164,8 +167,14 @@ def extract_video_info(url):
 
         if stream:
             stream_url = stream.url
+            # تخصيص اسم رقمي لو تم السحب عبر 스트림لينك وكان الرابط فيسبوك
+            if "facebook.com" in url or "fb.watch" in url:
+                stream_title = f"VidSnap_{random.randint(100000000, 999999999)}"
+            else:
+                stream_title = "Video Stream"
+
             return {
-                "title": "Video Stream",
+                "title": stream_title,
                 "thumbnail": "",
                 "combined_url": stream_url,
                 "video_url": stream_url,
