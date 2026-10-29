@@ -129,8 +129,11 @@ def format_ytdlp_result(info):
         "audio_url": audio_url,
         "formats": formats,
     }
-
 def extract_video_info(url):
+    # 🛑 فلتر يوتيوب: يرفض الرابط فوراً قبل بدء البحث
+    if "youtube.com" in url.lower() or "youtu.be" in url.lower():
+        raise Exception("لا يمكن التنزيل من يوتيوب للحفاظ على سياسة جوجل")
+
     agent = random.choice(USER_AGENTS)
     cookies = os.path.join(os.path.dirname(__file__), "..", "cookies.txt")
 
